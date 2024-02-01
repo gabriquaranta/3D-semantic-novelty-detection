@@ -1,0 +1,162 @@
+Cannot import torchlars
+Cannot load RSCNN: No module named 'pointnet2_ops'
+Cannot load PCT: No module named 'pointnet2_ops'
+Cannot load PointMLP: No module named 'pointnet2_ops'
+Cannot load PointNet2: No module named 'pointnet2_ops'
+out-of-distribution eval - Modelnet -> SONN ..
+Arguments: Namespace(local_rank=None, use_sync_bn=False, use_amp=False, script_mode='eval', config='cfgs/dgcnn-cla.yaml', seed=1, epochs=250, batch_size=1, num_workers=4, resume=None, apply_fix_cellphone=True, data_root='./3D_OS_release_data', checkpoints_dir='outputs', exp_name='DGCNN_CE_SR1_EVAL', eval_step=1, save_step=10, ckpt_path='outputs/DGCNN_CE_SR1_wEVAL/models/model_last.pth', src='SR1', sonn_split='main_split', sonn_h5_name='objectdataset.h5', augm_set='rw', grad_norm_clip=-1, num_points=1024, num_points_test=2048, wandb_name=None, wandb_group='md-2-sonn-augmCorr', wandb_proj='benchmark-3d-ood-cla', loss='CE', cs=False, cs_gan_lr=0.0002, cs_beta=0.1, save_feats=None, corruption=None, tar1='none', tar2='none')
+ModelNet40_OOD - Reading data from h5py file: ./3D_OS_release_data/modelnet40_normal_resampled/ood_sets_cache/SR1_train.h5
+ModelNet40_OOD - split: train, categories: {'chair': 0, 'bookshelf': 1, 'door': 2, 'sink': 3, 'sofa': 4}
+SR1 train data len: 2378
+ModelNet40_OOD - Reading data from h5py file: ./3D_OS_release_data/modelnet40_normal_resampled/ood_sets_cache/SR1_test.h5
+ModelNet40_OOD - split: test, categories: {'chair': 0, 'bookshelf': 1, 'door': 2, 'sink': 3, 'sofa': 4}
+/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+Src is SR1
+
+ScanObject - num_points: 2048, sonn_split: main_split, h5_suffix: objectdataset.h5, split: all, class_choice: {4: 0, 8: 1, 7: 2, 12: 3, 13: 4}, num samples: 1255
+ScanObject - num_points: 2048, sonn_split: main_split, h5_suffix: objectdataset.h5, split: all, class_choice: {10: 0, 14: 1, 5: 2, 6: 3, 9: 2}, num samples: 788
+ScanObject - num_points: 2048, sonn_split: main_split, h5_suffix: objectdataset.h5, split: all, class_choice: {0: 404, 1: 404, 2: 404, 3: 404, 11: 404}, num samples: 847
+dgcnn k: 20
+dgcnn emb_dims: 1024
+Clf - feature encoder: DGCNN
+Clf Head - num classes: 5, input dim: 2048, act: leakyrelu, dropout: 0.5
+Model params count: 1.8003 M
+Load weights:  <All keys matched successfully>
+100% 1255/1255 [00:24<00:00, 50.81it/s]
+100% 788/788 [00:15<00:00, 51.19it/s]
+100% 847/847 [00:16<00:00, 50.92it/s]
+
+################################################################################
+Computing OOD metrics with MSP normality score...
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.7147410358565737, Clf Bal Acc: 0.6984351642274802
+SRC->TAR1:      AUROC: 0.7234, FPR95: 0.9175, AUPR_IN: 0.8367, AUPR_OUT: 0.5373
+SRC->TAR2:      AUROC: 0.7096, FPR95: 0.9115, AUPR_IN: 0.8196, AUPR_OUT: 0.5439
+SRC->TAR1+TAR2: AUROC: 0.7162, FPR95: 0.9144, AUPR_IN: 0.7300, AUPR_OUT: 0.7010
+to spreadsheet: 0.7233578376847938,0.9175126903553299,0.8366793963237139,0.5372654625656276,0.7095885642788939,0.911452184179457,0.8195804058036809,0.5439447835795334,0.7162247645503613,0.9143730886850153,0.7299980429532509,0.7009833005892856
+################################################################################
+
+################################################################################
+Computing OOD metrics with MLS normality score...
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.7147410358565737, Clf Bal Acc: 0.6984351642274802
+SRC->TAR1:      AUROC: 0.6964, FPR95: 0.9632, AUPR_IN: 0.8272, AUPR_OUT: 0.4847
+SRC->TAR2:      AUROC: 0.6881, FPR95: 0.9126, AUPR_IN: 0.8077, AUPR_OUT: 0.5198
+SRC->TAR1+TAR2: AUROC: 0.6921, FPR95: 0.9370, AUPR_IN: 0.7171, AUPR_OUT: 0.6678
+to spreadsheet: 0.6964042307925657,0.9631979695431472,0.8272211750876968,0.48471661480955736,0.6881320056256673,0.9126328217237308,0.8076836821901413,0.519787008036201,0.692118863993567,0.9370030581039756,0.7170781571003735,0.6678145134164568
+################################################################################
+
+################################################################################
+Computing OOD metrics with entropy normality score...
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.7147410358565737, Clf Bal Acc: 0.6984351642274802
+SRC->TAR1:      AUROC: 0.7181, FPR95: 0.9327, AUPR_IN: 0.8352, AUPR_OUT: 0.5180
+SRC->TAR2:      AUROC: 0.7075, FPR95: 0.9244, AUPR_IN: 0.8193, AUPR_OUT: 0.5363
+SRC->TAR1+TAR2: AUROC: 0.7126, FPR95: 0.9284, AUPR_IN: 0.7294, AUPR_OUT: 0.6899
+to spreadsheet: 0.7181194005703075,0.932741116751269,0.8352335286034369,0.5179665643208762,0.7075198615220346,0.9244391971664699,0.8193470975932164,0.5363013813839217,0.7126283855404071,0.9284403669724771,0.7293742544351555,0.6898540859978144
+################################################################################
+
+################################################################################
+Computing OOD metrics with distance from train features...
+  0% 0/2378 [00:00<?, ?it/s]/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+100% 2378/2378 [00:15<00:00, 155.33it/s]
+100% 1255/1255 [00:24<00:00, 50.44it/s]
+100% 788/788 [00:15<00:00, 50.05it/s]
+100% 847/847 [00:17<00:00, 49.80it/s]
+Euclidean distances in a non-normalized space:
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.7115537848605578, Clf Bal Acc: 0.6875374172922296
+SRC->TAR1:      AUROC: 0.6228, FPR95: 0.9391, AUPR_IN: 0.7372, AUPR_OUT: 0.4593
+SRC->TAR2:      AUROC: 0.7062, FPR95: 0.8300, AUPR_IN: 0.7765, AUPR_OUT: 0.5853
+SRC->TAR1+TAR2: AUROC: 0.6660, FPR95: 0.8826, AUPR_IN: 0.6170, AUPR_OUT: 0.6870
+to spreadsheet: 0.6228062369810099,0.9390862944162437,0.7371574075093009,0.45931897762718266,0.7062197491027624,0.8299881936245572,0.7765411448860435,0.585325177206928,0.6660180074807802,0.8825688073394495,0.6169698139590507,0.6870024196297173
+
+Euclidean distances with prototypes:
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.21274900398406374, Clf Bal Acc: 0.2
+SRC->TAR1:      AUROC: 0.6039, FPR95: 0.9454, AUPR_IN: 0.7226, AUPR_OUT: 0.4430
+SRC->TAR2:      AUROC: 0.6689, FPR95: 0.8796, AUPR_IN: 0.7175, AUPR_OUT: 0.5487
+SRC->TAR1+TAR2: AUROC: 0.6376, FPR95: 0.9113, AUPR_IN: 0.5625, AUPR_OUT: 0.6637
+to spreadsheet: 0.6038799118247821,0.9454314720812182,0.7225646140176423,0.4430438010018929,0.6688767950629595,0.8795749704840614,0.7174548945962017,0.5486771771298863,0.6375510800833364,0.9113149847094801,0.5625146142767943,0.6637081821349256
+
+Cosine similarities on the hypersphere:
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.7282868525896414, Clf Bal Acc: 0.709239094448255
+SRC->TAR1:      AUROC: 0.6629, FPR95: 0.9048, AUPR_IN: 0.7699, AUPR_OUT: 0.5039
+SRC->TAR2:      AUROC: 0.7063, FPR95: 0.8749, AUPR_IN: 0.7856, AUPR_OUT: 0.5720
+SRC->TAR1+TAR2: AUROC: 0.6854, FPR95: 0.8893, AUPR_IN: 0.6464, AUPR_OUT: 0.6995
+to spreadsheet: 0.6629482071713148,0.9048223350253807,0.769915956115649,0.5039061819659825,0.7063378128571899,0.8748524203069658,0.7856097549845253,0.571956744248059,0.6854258805755571,0.8892966360856269,0.6464457470040214,0.6995082454748545
+
+Cosine similarities with prototypes:
+AUROC - Src label: 1, Tar label: 0
+Src Test - Clf Acc: 0.21274900398406374, Clf Bal Acc: 0.2
+SRC->TAR1:      AUROC: 0.5652, FPR95: 0.9086, AUPR_IN: 0.6835, AUPR_OUT: 0.4536
+SRC->TAR2:      AUROC: 0.5801, FPR95: 0.9457, AUPR_IN: 0.6712, AUPR_OUT: 0.4569
+SRC->TAR1+TAR2: AUROC: 0.5729, FPR95: 0.9278, AUPR_IN: 0.5153, AUPR_OUT: 0.6245
+to spreadsheet: 0.5651970797014985,0.9086294416243654,0.6835468507769435,0.45355600600672474,0.5800693330573808,0.9456906729634003,0.6711548988506908,0.45685831130535165,0.5729015436724052,0.92782874617737,0.5153021594858519,0.6245037193345934
+################################################################################
+
+################################################################################
+Computing OOD metrics with ODIN normality score...
+  0% 0/1255 [00:00<?, ?it/s]/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+100% 1255/1255 [01:09<00:00, 17.96it/s]
+100% 788/788 [00:44<00:00, 17.88it/s]
+100% 847/847 [00:47<00:00, 17.85it/s]
+AUROC - Src label: 1, Tar label: 0
+SRC->TAR1:      AUROC: 0.6965, FPR95: 0.9619, AUPR_IN: 0.8273, AUPR_OUT: 0.4851
+SRC->TAR2:      AUROC: 0.6879, FPR95: 0.9138, AUPR_IN: 0.8075, AUPR_OUT: 0.5199
+SRC->TAR1+TAR2: AUROC: 0.6920, FPR95: 0.9370, AUPR_IN: 0.7170, AUPR_OUT: 0.6681
+to spreadsheet: 0.6964740024672882,0.9619289340101523,0.8273262002808052,0.4850882072324801,0.6879043448402378,0.9138134592680047,0.8075115939658228,0.5198567485104407,0.6920345529198192,0.9370030581039756,0.7170442659075615,0.6680533798438457
+################################################################################
+
+################################################################################
+Computing OOD metrics with Energy normality score...
+  0% 0/1255 [00:00<?, ?it/s]/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+100% 1255/1255 [00:28<00:00, 43.61it/s]
+100% 788/788 [00:18<00:00, 43.46it/s]
+100% 847/847 [00:19<00:00, 43.70it/s]
+AUROC - Src label: 1, Tar label: 0
+SRC->TAR1:      AUROC: 0.6940, FPR95: 0.9708, AUPR_IN: 0.8263, AUPR_OUT: 0.4806
+SRC->TAR2:      AUROC: 0.6877, FPR95: 0.9244, AUPR_IN: 0.8073, AUPR_OUT: 0.5181
+SRC->TAR1+TAR2: AUROC: 0.6907, FPR95: 0.9468, AUPR_IN: 0.7162, AUPR_OUT: 0.6650
+to spreadsheet: 0.6939905353206464,0.9708121827411168,0.8262695986166906,0.4805590970013186,0.6876917360075636,0.9244391971664699,0.8072809392406952,0.5180619996124729,0.6907274876031044,0.9467889908256881,0.7162451203778784,0.6649609236575295
+################################################################################
+
+################################################################################
+Computing OOD metrics with GradNorm normality score...
+  0% 0/1255 [00:00<?, ?it/s]/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+100% 1255/1255 [00:44<00:00, 28.35it/s]
+100% 788/788 [00:27<00:00, 28.33it/s]
+100% 847/847 [00:30<00:00, 28.23it/s]
+AUROC - Src label: 1, Tar label: 0
+SRC->TAR1:      AUROC: 0.6908, FPR95: 0.9543, AUPR_IN: 0.8150, AUPR_OUT: 0.4861
+SRC->TAR2:      AUROC: 0.6613, FPR95: 0.9457, AUPR_IN: 0.7906, AUPR_OUT: 0.4857
+SRC->TAR1+TAR2: AUROC: 0.6755, FPR95: 0.9498, AUPR_IN: 0.6933, AUPR_OUT: 0.6525
+to spreadsheet: 0.6907709264464983,0.9543147208121827,0.8150121122702924,0.486096573152695,0.6613150702973232,0.9456906729634003,0.7905682103319204,0.48574405779016044,0.6755115318542344,0.9498470948012232,0.6932735421671948,0.6525433264155087
+################################################################################
+
+################################################################################
+Building React validation loader...
+ModelNet40_OOD - Reading data from h5py file: ./3D_OS_release_data/modelnet40_normal_resampled/ood_sets_cache/SR1_test.h5
+ModelNet40_OOD - split: test, categories: {'chair': 0, 'bookshelf': 1, 'door': 2, 'sink': 3, 'sofa': 4}
+React Val - SR1 data len: 340
+/usr/local/lib/python3.10/dist-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 4 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+100% 340/340 [00:03<00:00, 109.05it/s]
+t = 2.1030
+Computing OOD metrics with React (+Energy) normality score, ID-dependent threshold (=2.1030)...
+React - using SR1 test to compute threshold
+100% 1255/1255 [00:28<00:00, 43.64it/s]
+100% 788/788 [00:18<00:00, 43.53it/s]
+100% 847/847 [00:19<00:00, 43.59it/s]
+AUROC - Src label: 1, Tar label: 0
+SRC->TAR1:      AUROC: 0.6799, FPR95: 0.9721, AUPR_IN: 0.8029, AUPR_OUT: 0.4760
+SRC->TAR2:      AUROC: 0.6985, FPR95: 0.9244, AUPR_IN: 0.8048, AUPR_OUT: 0.5327
+SRC->TAR1+TAR2: AUROC: 0.6895, FPR95: 0.9474, AUPR_IN: 0.6925, AUPR_OUT: 0.6696
+to spreadsheet: 0.679941654700993,0.9720812182741116,0.8028861710532745,0.47604163135193905,0.698482104639294,0.9244391971664699,0.8048282492339879,0.5327072898831623,0.6895464015497643,0.9474006116207951,0.6924908685101856,0.6696325071194529
+################################################################################

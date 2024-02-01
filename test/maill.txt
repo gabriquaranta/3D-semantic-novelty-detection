@@ -1,0 +1,11 @@
+Buongiorno,
+
+io e il mio gruppo siamo bloccati cercando di capire come incorporare OpenShape
+in 3DOS. Abbiamo provato a seguire le istruzioni presenti sui github ma non
+siamo riusciti a farlo funzionare.
+
+Abbiamo provato ad aggiungere un modello DGCNN da OpenShape in 3DOS e creare un
+config da cui lanciare il ckpt sp-conv-all ma non siamo sicuri di come
+implementarlo.
+
+Dove possiamo trovare altre informazioni?
