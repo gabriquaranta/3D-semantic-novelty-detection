@@ -5,6 +5,7 @@ import numpy as np
 import torch_redstone as rst
 import torch.nn.functional as F
 import dgl
+from dgl import geometry
 import sys
 import os
 from huggingface_hub import hf_hub_download
@@ -148,7 +149,9 @@ def farthest_point_sample(xyz, npoint):
     Return:
         centroids: sampled pointcloud index, [B, npoint]
     """
-    return dgl.geometry.farthest_point_sampler(xyz, npoint)
+
+    return geometry.farthest_point_sampler(xyz, npoint)
+
     device = xyz.device
     B, N, C = xyz.shape
     centroids = torch.zeros(B, npoint, dtype=torch.long).to(device)
@@ -247,9 +250,13 @@ class PointNetSetAbstraction(nn.Module):
             new_xyz: sampled points position data, [B, C, S]
             new_points_concat: sample points feature data, [B, D', S]
         """
+        print(xyz.shape, points.shape)
+
         xyz = xyz.permute(0, 2, 1)
         if points is not None:
             points = points.permute(0, 2, 1)
+
+        print(xyz.shape, points.shape)
 
         if self.group_all:
             new_xyz, new_points = sample_and_group_all(xyz, points)
@@ -310,9 +317,12 @@ class PointPatchTransformer(nn.Module):
         self.sa.npoint = self.patches
         if self.training:
             self.sa.npoint -= self.patch_dropout
-        # print("input", features.shape)
+
+        print("input", features.shape)
+        print("input check args", features[:, :3])
         centroids, feature = self.sa(features[:, :3], features)
-        # print("f", feature.shape, 'c', centroids.shape)
+
+        print("f", feature.shape, "c", centroids.shape)
         x = self.lift(torch.cat([centroids, feature], dim=1))
 
         x = rst.supercat([self.cls_token, x], dim=-2)
@@ -390,7 +400,7 @@ def G14(s):
         nn.Linear(512, 1280),
     )
     model_path = (
-        "/content//content/SemNov_AML_DAAI_23-24-main/openshape-pointbert-vitg14-rgb.pt"
+        "/content/3D-semantic-novelty-detection/openshape-pointbert-vitg14-rgb/model.pt"
     )
     s = torch.load(model_path)
     dic = model.load_state_dict(module(s["state_dict"], "module"))
@@ -400,7 +410,9 @@ def G14(s):
 
 def load_pc_encoder(name):
     name = "openshape-pointbert-vitg14-rgb"
-    model_path = "/content/SemNov_AML_DAAI_23-24-main/openshape-pointbert-vitg14-rgb.pt"
+    model_path = (
+        "/content/3D-semantic-novelty-detection/openshape-pointbert-vitg14-rgb/model.pt"
+    )
 
     s = torch.load(model_path, map_location="cpu")
     model = G14(s).eval()

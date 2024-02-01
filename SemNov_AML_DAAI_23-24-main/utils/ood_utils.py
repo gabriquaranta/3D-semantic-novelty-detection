@@ -2,6 +2,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from datasets.sncore_4k import *
+
 # noinspection PyUnresolvedReferences
 from datasets.sncore_splits import *
 from utils.utils import *
@@ -12,19 +13,40 @@ from tqdm import tqdm
 
 try:
     # flag for disabling TQDM during evaluation!
-    DISABLE_TQDM = bool(os.environ['NO_TQDM'])
+    DISABLE_TQDM = bool(os.environ["NO_TQDM"])
 except KeyError:
     DISABLE_TQDM = False
 
 
 def print_ood_output(res_tar1, res_tar2, res_big_tar):
     # invert aupr in and out as we use label 1 for ID data
-    auroc1, fpr1, auprin1, auprout1 = res_tar1['auroc'], res_tar1['fpr_at_95_tpr'], res_tar1['aupr_in'], res_tar1['aupr_out']
-    auroc2, fpr2, auprin2, auprout2 = res_tar2['auroc'], res_tar2['fpr_at_95_tpr'], res_tar2['aupr_in'], res_tar2['aupr_out']
-    auroc3, fpr3, auprin3, auprout3 = res_big_tar['auroc'], res_big_tar['fpr_at_95_tpr'], res_big_tar['aupr_in'], res_big_tar['aupr_out']
-    print(f"SRC->TAR1:      AUROC: {auroc1:.4f}, FPR95: {fpr1:.4f}, AUPR_IN: {auprin1:.4f}, AUPR_OUT: {auprout1:.4f}")
-    print(f"SRC->TAR2:      AUROC: {auroc2:.4f}, FPR95: {fpr2:.4f}, AUPR_IN: {auprin2:.4f}, AUPR_OUT: {auprout2:.4f}")
-    print(f"SRC->TAR1+TAR2: AUROC: {auroc3:.4f}, FPR95: {fpr3:.4f}, AUPR_IN: {auprin3:.4f}, AUPR_OUT: {auprout3:.4f}")
+    auroc1, fpr1, auprin1, auprout1 = (
+        res_tar1["auroc"],
+        res_tar1["fpr_at_95_tpr"],
+        res_tar1["aupr_in"],
+        res_tar1["aupr_out"],
+    )
+    auroc2, fpr2, auprin2, auprout2 = (
+        res_tar2["auroc"],
+        res_tar2["fpr_at_95_tpr"],
+        res_tar2["aupr_in"],
+        res_tar2["aupr_out"],
+    )
+    auroc3, fpr3, auprin3, auprout3 = (
+        res_big_tar["auroc"],
+        res_big_tar["fpr_at_95_tpr"],
+        res_big_tar["aupr_in"],
+        res_big_tar["aupr_out"],
+    )
+    print(
+        f"SRC->TAR1:      AUROC: {auroc1:.4f}, FPR95: {fpr1:.4f}, AUPR_IN: {auprin1:.4f}, AUPR_OUT: {auprout1:.4f}"
+    )
+    print(
+        f"SRC->TAR2:      AUROC: {auroc2:.4f}, FPR95: {fpr2:.4f}, AUPR_IN: {auprin2:.4f}, AUPR_OUT: {auprout2:.4f}"
+    )
+    print(
+        f"SRC->TAR1+TAR2: AUROC: {auroc3:.4f}, FPR95: {fpr3:.4f}, AUPR_IN: {auprin3:.4f}, AUPR_OUT: {auprout3:.4f}"
+    )
 
 
 def cos_sim(a, b, eps=1e-8):
@@ -59,7 +81,8 @@ def get_sncore_id_ood_loaders(opt):
         split="train",
         class_choice=list(eval(opt.src).keys()),
         num_points=opt.num_points,
-        transforms=apply_transf)
+        transforms=apply_transf,
+    )
 
     train_loader = DataLoader(
         train_dataset,
@@ -67,7 +90,8 @@ def get_sncore_id_ood_loaders(opt):
         num_workers=opt.num_workers,
         worker_init_fn=init_np_seed,
         drop_last=apply_drop_last,
-        shuffle=apply_shuffle)
+        shuffle=apply_shuffle,
+    )
 
     # test loaders (ID)
     src_dataset = ShapeNetCore4k(
@@ -75,7 +99,8 @@ def get_sncore_id_ood_loaders(opt):
         split="test",
         class_choice=list(eval(opt.src).keys()),
         num_points=opt.num_points,
-        transforms=apply_transf)
+        transforms=apply_transf,
+    )
 
     src_loader = DataLoader(
         src_dataset,
@@ -83,7 +108,8 @@ def get_sncore_id_ood_loaders(opt):
         num_workers=opt.num_workers,
         worker_init_fn=init_np_seed,
         drop_last=apply_drop_last,
-        shuffle=apply_shuffle)
+        shuffle=apply_shuffle,
+    )
 
     # target loaders (OOD)
     # target #1
@@ -92,7 +118,8 @@ def get_sncore_id_ood_loaders(opt):
         split="test",
         class_choice=list(eval(opt.tar1).keys()),
         num_points=opt.num_points,
-        transforms=apply_transf)
+        transforms=apply_transf,
+    )
 
     tar1_loader = DataLoader(
         tar1_dataset,
@@ -100,7 +127,8 @@ def get_sncore_id_ood_loaders(opt):
         num_workers=opt.num_workers,
         worker_init_fn=init_np_seed,
         drop_last=apply_drop_last,
-        shuffle=apply_shuffle)
+        shuffle=apply_shuffle,
+    )
 
     # target #2
     tar2_dataset = ShapeNetCore4k(
@@ -108,7 +136,8 @@ def get_sncore_id_ood_loaders(opt):
         split="test",
         class_choice=list(eval(opt.tar1).keys()),
         num_points=opt.num_points,
-        transforms=apply_transf)
+        transforms=apply_transf,
+    )
 
     tar2_loader = DataLoader(
         tar2_dataset,
@@ -116,15 +145,22 @@ def get_sncore_id_ood_loaders(opt):
         num_workers=opt.num_workers,
         worker_init_fn=init_np_seed,
         drop_last=apply_drop_last,
-        shuffle=apply_shuffle)
+        shuffle=apply_shuffle,
+    )
 
-    print(f"\nSrc: {opt.src}, Tar 1: {opt.tar1}, Tar 2: {opt.tar2}, Tar 3: {opt.tar1}+{opt.tar2}")
-    return train_loader, (src_loader, tar1_loader, tar2_loader), (opt.src, opt.tar1, opt.tar2)
+    print(
+        f"\nSrc: {opt.src}, Tar 1: {opt.tar1}, Tar 2: {opt.tar2}, Tar 3: {opt.tar1}+{opt.tar2}"
+    )
+    return (
+        train_loader,
+        (src_loader, tar1_loader, tar2_loader),
+        (opt.src, opt.tar1, opt.tar2),
+    )
 
 
 @torch.no_grad()
 def get_simclr_proj(model, loader):
-    """ DDP impl """
+    """DDP impl"""
     all_proj = []
     all_labels = []
     model.eval()
@@ -147,7 +183,7 @@ def get_simclr_proj(model, loader):
 
 @torch.no_grad()
 def get_network_output(model, loader, softmax=True):
-    """ DDP impl """
+    """DDP impl"""
     all_logits = []
     all_pred = []
     all_labels = []
@@ -157,6 +193,7 @@ def get_network_output(model, loader, softmax=True):
         assert torch.is_tensor(points), "expected BNC tensor as batch[0]"
         points = points.cuda(non_blocking=True)
         labels = labels.cuda(non_blocking=True)
+        print("\nin ood utils", points.shape)
         logits = model(points)
         if is_dist() and get_ws() > 1:
             logits = gather(logits, dim=0)
@@ -175,7 +212,7 @@ def get_network_output(model, loader, softmax=True):
 
 @torch.no_grad()
 def get_confidence(model, loader, softmax=True):
-    """ DDP impl """
+    """DDP impl"""
     all_conf = []
     all_pred = []
     all_labels = []
@@ -202,7 +239,7 @@ def get_confidence(model, loader, softmax=True):
 
 @torch.no_grad()
 def get_penultimate_feats(model, loader):
-    """ DDP impl """
+    """DDP impl"""
     all_feats = []
     all_labels = []
     model.eval()
@@ -311,17 +348,17 @@ def iterate_data_gradnorm(model, loader, temperature=1):
 @torch.no_grad()
 def estimate_react_thres(model, loader, id_percentile=0.9):
     """
-    Estimate the threshold to be used for react. 
-    Strategy: choose threshold which allows to keep id_percentile% of 
+    Estimate the threshold to be used for react.
+    Strategy: choose threshold which allows to keep id_percentile% of
     activations in in distribution data (source https://openreview.net/pdf?id=IBVBtz_sRSm).
 
     Args:
-        model: base network 
+        model: base network
         loader: in distribution data loader (some kind of validation set)
-        id_percentile: percent of in distribution activations that we want to keep 
+        id_percentile: percent of in distribution activations that we want to keep
 
     Returns:
-        threshold: float value indicating the computed threshold 
+        threshold: float value indicating the computed threshold
     """
 
     print("Estimating react threshold...", end="")
@@ -360,7 +397,7 @@ def iterate_data_react(model, loader, threshold=1, energy_temper=1):
         x = penultimate.clip(max=threshold)
         logits = model.head(x)
 
-        # apply energy 
+        # apply energy
         conf = energy_temper * torch.logsumexp(logits / energy_temper, dim=1)
         confs.extend(conf.data.cpu().numpy())
 
@@ -368,13 +405,13 @@ def iterate_data_react(model, loader, threshold=1, energy_temper=1):
 
 
 def compute_centroids(model, train_loader):
-    """ computes closed set centroids [num_classes x proj_dim] """
+    """computes closed set centroids [num_classes x proj_dim]"""
     num_classes = train_loader.dataset.num_classes
     # use centroids computed by averagin class clusters points
     train_proj, train_labels = get_simclr_proj(model, train_loader)
     centroids = []
     for cat in range(num_classes):
-        cat_idxs = (train_labels == cat)
+        cat_idxs = train_labels == cat
         proj_mean = train_proj[cat_idxs].mean(0).unsqueeze(0)
         centroids.append(proj_mean)
     centroids = torch.cat(centroids, 0).cuda()
@@ -426,15 +463,20 @@ def get_ood_metrics(src_scores, tar_scores, src_label=1):
     tar_label = int(not src_label)
     src_scores = to_numpy(src_scores)
     tar_scores = to_numpy(tar_scores)
-    labels = np.concatenate([
-        np.full(src_scores.shape[0], src_label, dtype=np.compat.long),
-        np.full(tar_scores.shape[0], tar_label, dtype=np.compat.long)
-    ], axis=0)
+    labels = np.concatenate(
+        [
+            np.full(src_scores.shape[0], src_label, dtype=np.compat.long),
+            np.full(tar_scores.shape[0], tar_label, dtype=np.compat.long),
+        ],
+        axis=0,
+    )
     scores = np.concatenate([src_scores, tar_scores], axis=0)
     return calc_metrics(scores, labels)
 
 
-def eval_ood_sncore(scores_list, preds_list=None, labels_list=None, src_label=1, silent=False):
+def eval_ood_sncore(
+    scores_list, preds_list=None, labels_list=None, src_label=1, silent=False
+):
     """
     conf_list: [SRC, TAR1, TAR2]
     preds_list: [SRC, TAR1, TAR2]
@@ -480,21 +522,25 @@ def eval_ood_sncore(scores_list, preds_list=None, labels_list=None, src_label=1,
     res_big_tar = get_ood_metrics(src_conf, big_tar_conf, src_label)
 
     # N.B. get_ood_metrics reports inverted AUPR_IN and AUPR_OUT results
-    # as we use label 1 for IN-DISTRIBUTION and thus we consider it positive. 
-    # the ood_metrics library argue to use 
+    # as we use label 1 for IN-DISTRIBUTION and thus we consider it positive.
+    # the ood_metrics library argue to use
 
     if not silent:
         print_ood_output(res_tar1, res_tar2, res_big_tar)
-        print(f"to spreadsheet: "
-              f"{res_tar1['auroc']},{res_tar1['fpr_at_95_tpr']},{res_tar1['aupr_in']},{res_tar1['aupr_out']},"
-              f"{res_tar2['auroc']},{res_tar2['fpr_at_95_tpr']},{res_tar2['aupr_in']},{res_tar2['aupr_out']},"
-              f"{res_big_tar['auroc']},{res_big_tar['fpr_at_95_tpr']},{res_big_tar['aupr_in']},{res_big_tar['aupr_out']}")
+        print(
+            f"to spreadsheet: "
+            f"{res_tar1['auroc']},{res_tar1['fpr_at_95_tpr']},{res_tar1['aupr_in']},{res_tar1['aupr_out']},"
+            f"{res_tar2['auroc']},{res_tar2['fpr_at_95_tpr']},{res_tar2['aupr_in']},{res_tar2['aupr_out']},"
+            f"{res_big_tar['auroc']},{res_big_tar['fpr_at_95_tpr']},{res_big_tar['aupr_in']},{res_big_tar['aupr_out']}"
+        )
 
     return src_acc, src_bal_acc, res_tar1, res_tar2, res_big_tar
 
 
-def eval_ood_sncore_csi(model, train_loader, src_loader, tar1_loader, tar2_loader, use_norm=True):
-    """ Using nearest training sample instead of category centroid to compute scores """
+def eval_ood_sncore_csi(
+    model, train_loader, src_loader, tar1_loader, tar2_loader, use_norm=True
+):
+    """Using nearest training sample instead of category centroid to compute scores"""
 
     eps = 1e-8
     train_feats, _ = get_simclr_proj(model, train_loader)
@@ -528,7 +574,7 @@ def eval_ood_sncore_csi(model, train_loader, src_loader, tar1_loader, tar2_loade
         scores_list=[src_scores.cpu(), tar1_scores.cpu(), tar2_scores.cpu()],
         preds_list=[None, None, None],
         labels_list=[None, None, None],
-        src_label=1  # confidence should be higher for ID samples
+        src_label=1,  # confidence should be higher for ID samples
     )
 
     return res

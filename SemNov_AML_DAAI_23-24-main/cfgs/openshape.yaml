@@ -12,4 +12,10 @@ scheduler:
     kwargs: { t_initial: 250, cycle_limit: 1, lr_min: !!float 1e-4 },
   }
 
-model: { ENCO_NAME, dropout: !!float 0.5, cla_input_dim: 1280, act: leakyrelu }
+model:
+  {
+    ENCO_NAME: openshape,
+    dropout: !!float 0.5,
+    cla_input_dim: 1280,
+    act: leakyrelu,
+  }
