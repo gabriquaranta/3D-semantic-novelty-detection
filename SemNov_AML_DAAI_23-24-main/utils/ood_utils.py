@@ -193,6 +193,7 @@ def get_network_output(model, loader, softmax=True):
     available in your point cloud, fill with [0.4, 0.4, 0.4].
 
     """
+
     all_logits = []
     all_pred = []
     all_labels = []
@@ -204,7 +205,7 @@ def get_network_output(model, loader, softmax=True):
         labels = labels.cuda(non_blocking=True)
 
         # fill rgb
-        extra_values = torch.full((1, 2048, 3), 0.4).cuda(non_blocking=True)
+        extra_values = torch.full((1, points.shape[1], 3), 0.4).cuda(non_blocking=True)
         points = torch.cat((points, extra_values), dim=-1)
         # B6N
         points = points.permute(0, 2, 1)
@@ -268,7 +269,7 @@ def get_penultimate_feats(model, loader):
         labels = labels.cuda(non_blocking=True)
 
         # fill rgb
-        extra_values = torch.full((1, 2048, 3), 0.4).cuda(non_blocking=True)
+        extra_values = torch.full((1, points.shape[1], 3), 0.4).cuda(non_blocking=True)
         points = torch.cat((points, extra_values), dim=-1)
         # B6N
         points = points.permute(0, 2, 1)
@@ -294,7 +295,15 @@ def iterate_data_odin(model, loader, epsilon=0.0, temper=1000):
         x = batch[0]
 
         x = x.cuda()
+
+        # fill rgb
+        extra_values = torch.full((1, x.shape[1], 3), 0.4).cuda(non_blocking=True)
+        x = torch.cat((x, extra_values), dim=-1)
+        # B6N
+        x = x.permute(0, 2, 1)
+
         x.requires_grad = True
+
         outputs = model(x)
 
         maxIndexTemp = np.argmax(outputs.data.cpu().numpy(), axis=1)
@@ -333,6 +342,13 @@ def iterate_data_energy(model, loader, temper=1):
 
         with torch.no_grad():
             x = x.cuda()
+
+            # fill rgb
+            extra_values = torch.full((1, x.shape[1], 3), 0.4).cuda(non_blocking=True)
+            x = torch.cat((x, extra_values), dim=-1)
+            # B6N
+            x = x.permute(0, 2, 1)
+
             # compute output, measure accuracy and record loss.
             logits = model(x)
 
@@ -350,6 +366,12 @@ def iterate_data_gradnorm(model, loader, temperature=1):
     for batch in tqdm(loader, disable=DISABLE_TQDM):
         x = batch[0]
         inputs = x.cuda()
+
+        # fill rgb
+        extra_values = torch.full((1, inputs.shape[1], 3), 0.4).cuda(non_blocking=True)
+        inputs = torch.cat((inputs, extra_values), dim=-1)
+        # B6N
+        inputs = inputs.permute(0, 2, 1)
 
         model.zero_grad()
         outputs = model(inputs)
@@ -393,6 +415,12 @@ def estimate_react_thres(model, loader, id_percentile=0.9):
         x = batch[0]
         x = x.cuda()
 
+        # fill rgb
+        extra_values = torch.full((1, x.shape[1], 3), 0.4).cuda(non_blocking=True)
+        x = torch.cat((x, extra_values), dim=-1)
+        # B6N
+        x = x.permute(0, 2, 1)
+
         # we perform forward on modules separately so that we can access penultimate layer
         feats = model.enco(x)
         penultimate = model.penultimate(feats)
@@ -414,6 +442,12 @@ def iterate_data_react(model, loader, threshold=1, energy_temper=1):
     for batch in tqdm(loader, disable=DISABLE_TQDM):
         x = batch[0]
         x = x.cuda()
+
+        # fill rgb
+        extra_values = torch.full((1, x.shape[1], 3), 0.4).cuda(non_blocking=True)
+        x = torch.cat((x, extra_values), dim=-1)
+        # B6N
+        x = x.permute(0, 2, 1)
 
         # we perform forward on modules separately so that we can access penultimate layer
         feats = model.enco(x)
