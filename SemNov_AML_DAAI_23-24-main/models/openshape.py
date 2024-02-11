@@ -318,8 +318,8 @@ class PointPatchTransformer(nn.Module):
         if self.training:
             self.sa.npoint -= self.patch_dropout
 
-        print("input", features.shape)
-        print("input check args", features[:, :3])
+        print("ppt input", features.shape)
+        print("ppt input check args", features[:, :3])
         centroids, feature = self.sa(features[:, :3], features)
 
         print("f", feature.shape, "c", centroids.shape)

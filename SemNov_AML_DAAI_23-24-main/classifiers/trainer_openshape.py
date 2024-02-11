@@ -268,17 +268,7 @@ def get_md_react_val_loader(opt):
 
     print(f"React Val - {opt.src} data len: {len(test_data)}")
 
-    # append corrupted test data
-    if opt.corruption:
-        print(f"React Val - adding corrupted synthetic data: {opt.corruption}")
-        l_corr_data = get_list_corr_data(
-            opt, split="test"
-        )  # list of corrupted test datasets
-        assert isinstance(l_corr_data, list)
-        assert isinstance(l_corr_data[0], data.Dataset)
-        l_corr_data.append(test_data)  # appending clean data to list corrupted datasets
-        test_data = torch.utils.data.ConcatDataset(l_corr_data)  # concat Dataset
-        print(f"React Val - cumulative (clean+corrupted) data len: {len(test_data)}\n")
+  
 
     val_data = test_data  # note: modelnet synthetic are not used in synth->real eval
     val_loader = DataLoader(
@@ -359,6 +349,8 @@ def eval_ood_md2sonn(opt, config):
     print("Load weights: ", model.load_state_dict(ckt_weights, strict=True))
     model = model.cuda().eval()
     print(model)
+
+
 
     src_logits, src_pred, src_labels = get_network_output(model, id_loader)
     tar1_logits, _, _ = get_network_output(model, ood1_loader)

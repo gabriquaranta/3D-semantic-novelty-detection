@@ -16,6 +16,7 @@ model:
   {
     ENCO_NAME: openshape,
     dropout: !!float 0.5,
+    emb_dims: 1024,
     cla_input_dim: 1280,
     act: leakyrelu,
   }

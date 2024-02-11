@@ -2,6 +2,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from datasets.sncore_4k import *
+import torch
 
 # noinspection PyUnresolvedReferences
 from datasets.sncore_splits import *
@@ -183,7 +184,15 @@ def get_simclr_proj(model, loader):
 
 @torch.no_grad()
 def get_network_output(model, loader, softmax=True):
-    """DDP impl"""
+    """DDP impl
+
+    Models accept point clouds of shape [B, 6, N] (XYZ-RGB) and trained with N = 10000.
+
+    Point clouds should be centered at centroid and normalized into the unit
+    ball, and RGB values should have range [0, 1]. If you don't have RGB
+    available in your point cloud, fill with [0.4, 0.4, 0.4].
+
+    """
     all_logits = []
     all_pred = []
     all_labels = []
@@ -193,7 +202,16 @@ def get_network_output(model, loader, softmax=True):
         assert torch.is_tensor(points), "expected BNC tensor as batch[0]"
         points = points.cuda(non_blocking=True)
         labels = labels.cuda(non_blocking=True)
-        print("\nin ood utils", points.shape)
+
+        # fill rgb
+        extra_values = torch.full((1, 2048, 3), 0.4).cuda(non_blocking=True)
+        points = torch.cat((points, extra_values), dim=-1)
+        # B6N
+        points = points.permute(0, 2, 1)
+
+        print("\nin ood utils", points.shape, labels.shape)
+        print(points)
+
         logits = model(points)
         if is_dist() and get_ws() > 1:
             logits = gather(logits, dim=0)
