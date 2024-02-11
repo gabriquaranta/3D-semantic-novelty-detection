@@ -209,8 +209,8 @@ def get_network_output(model, loader, softmax=True):
         # B6N
         points = points.permute(0, 2, 1)
 
-        print("\nin ood utils", points.shape, labels.shape)
-        print(points)
+        # print("\nin ood utils", points.shape,labels.shape)
+        # print(points)
 
         logits = model(points)
         if is_dist() and get_ws() > 1:
@@ -266,6 +266,13 @@ def get_penultimate_feats(model, loader):
         assert torch.is_tensor(points), "expected BNC tensor as batch[0]"
         points = points.cuda(non_blocking=True)
         labels = labels.cuda(non_blocking=True)
+
+        # fill rgb
+        extra_values = torch.full((1, 2048, 3), 0.4).cuda(non_blocking=True)
+        points = torch.cat((points, extra_values), dim=-1)
+        # B6N
+        points = points.permute(0, 2, 1)
+
         feats = model(points, return_penultimate=True)
         if is_dist() and get_ws() > 1:
             feats = gather(feats, dim=0)

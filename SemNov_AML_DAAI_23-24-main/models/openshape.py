@@ -250,13 +250,13 @@ class PointNetSetAbstraction(nn.Module):
             new_xyz: sampled points position data, [B, C, S]
             new_points_concat: sample points feature data, [B, D', S]
         """
-        print(xyz.shape, points.shape)
+        #print(xyz.shape, points.shape)
 
         xyz = xyz.permute(0, 2, 1)
         if points is not None:
             points = points.permute(0, 2, 1)
 
-        print(xyz.shape, points.shape)
+        #print(xyz.shape, points.shape)
 
         if self.group_all:
             new_xyz, new_points = sample_and_group_all(xyz, points)
@@ -318,11 +318,11 @@ class PointPatchTransformer(nn.Module):
         if self.training:
             self.sa.npoint -= self.patch_dropout
 
-        print("ppt input", features.shape)
-        print("ppt input check args", features[:, :3])
+        #print("ppt input", features.shape)
+        #print("ppt input check args", features[:, :3])
         centroids, feature = self.sa(features[:, :3], features)
 
-        print("f", feature.shape, "c", centroids.shape)
+        #print("f", feature.shape, "c", centroids.shape)
         x = self.lift(torch.cat([centroids, feature], dim=1))
 
         x = rst.supercat([self.cls_token, x], dim=-2)
