@@ -49,6 +49,7 @@ class Classifier(nn.Module):
 
         # encoder: [B,N,3] -> [B,C_In]
         self.enco = get_feature_encoder(args)
+        self.enco_name = args.ENCO_NAME
         print(f"Clf - feature encoder: {args.ENCO_NAME}")
         print(
             f"Clf Head - "
