@@ -13,20 +13,34 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from utils.utils import *
 from utils.dist import *
+
 # noinspection PyUnresolvedReferences
 from utils.data_utils import H5_Dataset
 from datasets.modelnet import *
 from datasets.scanobject import *
 from models.classifiers import Classifier
-from utils.ood_utils import get_confidence, eval_ood_sncore, iterate_data_odin, \
-    iterate_data_energy, iterate_data_gradnorm, iterate_data_react, estimate_react_thres, print_ood_output, \
-    get_penultimate_feats, get_network_output
+from utils.ood_utils import (
+    get_confidence,
+    eval_ood_sncore,
+    iterate_data_odin,
+    iterate_data_energy,
+    iterate_data_gradnorm,
+    iterate_data_react,
+    estimate_react_thres,
+    print_ood_output,
+    get_penultimate_feats,
+    get_network_output,
+)
 import wandb
 from base_args import add_base_args
 from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from models.common import convert_model_state, logits_entropy_loss
 from models.ARPL_utils import Generator, Discriminator
-from classifiers.common import train_epoch_cla, train_epoch_rsmix_exposure, train_epoch_cs
+from classifiers.common import (
+    train_epoch_cla,
+    train_epoch_rsmix_exposure,
+    train_epoch_cs,
+)
 
 
 def get_args():
@@ -34,36 +48,77 @@ def get_args():
     parser = add_base_args(parser)
 
     # experiment specific arguments
-    parser.add_argument("--augm_set",
-                        type=str, default="rw", help="data augmentation choice", choices=["st", "rw"])
-    parser.add_argument("--grad_norm_clip",
-                        default=-1, type=float, help="gradient clipping")
-    parser.add_argument("--num_points",
-                        default=1024, type=int, help="number of points sampled for each object view")
-    parser.add_argument("--num_points_test",
-                        default=2048, type=int, help="number of points sampled for each SONN object - only for testing")
+    parser.add_argument(
+        "--augm_set",
+        type=str,
+        default="rw",
+        help="data augmentation choice",
+        choices=["st", "rw"],
+    )
+    parser.add_argument(
+        "--grad_norm_clip", default=-1, type=float, help="gradient clipping"
+    )
+    parser.add_argument(
+        "--num_points",
+        default=1024,
+        type=int,
+        help="number of points sampled for each object view",
+    )
+    parser.add_argument(
+        "--num_points_test",
+        default=2048,
+        type=int,
+        help="number of points sampled for each SONN object - only for testing",
+    )
     parser.add_argument("--wandb_name", type=str, default=None)
     parser.add_argument("--wandb_group", type=str, default="md-2-sonn-augmCorr")
     parser.add_argument("--wandb_proj", type=str, default="benchmark-3d-ood-cla")
-    parser.add_argument("--loss", type=str, default="CE",
-                        choices=["CE", "CE_ls", "cosface", "arcface", "subcenter_arcface", "ARPL", "cosine"],
-                        help="Which loss to use for training. CE is default")
-    parser.add_argument("--cs", action='store_true', help="Enable confusing samples for ARPL")
-    parser.add_argument("--cs_gan_lr", type=float, default=0.0002, help="Confusing samples GAN lr")
-    parser.add_argument("--cs_beta", type=float, default=0.1, help="Beta loss weight for CS")
-    parser.add_argument("--save_feats", type=str, default=None, help="Path where to save feats of penultimate layer")
+    parser.add_argument(
+        "--loss",
+        type=str,
+        default="CE",
+        choices=[
+            "CE",
+            "CE_ls",
+            "cosface",
+            "arcface",
+            "subcenter_arcface",
+            "ARPL",
+            "cosine",
+        ],
+        help="Which loss to use for training. CE is default",
+    )
+    parser.add_argument(
+        "--cs", action="store_true", help="Enable confusing samples for ARPL"
+    )
+    parser.add_argument(
+        "--cs_gan_lr", type=float, default=0.0002, help="Confusing samples GAN lr"
+    )
+    parser.add_argument(
+        "--cs_beta", type=float, default=0.1, help="Beta loss weight for CS"
+    )
+    parser.add_argument(
+        "--save_feats",
+        type=str,
+        default=None,
+        help="Path where to save feats of penultimate layer",
+    )
 
     # Adopt Corrupted data
     # this flag should be set also during evaluation if testing Synth->Real Corr/LIDAR Augmented models
-    parser.add_argument("--corruption",
-                        type=str, default=None, help="type of corrupted data (lidar,occlusion,all) - default is None")
+    parser.add_argument(
+        "--corruption",
+        type=str,
+        default=None,
+        help="type of corrupted data (lidar,occlusion,all) - default is None",
+    )
     args = parser.parse_args()
 
     args.data_root = os.path.expanduser(args.data_root)
     args.tar1 = "none"
     args.tar2 = "none"
 
-    if args.script_mode == 'eval':
+    if args.script_mode == "eval":
         args.batch_size = 1
 
     return args
@@ -71,8 +126,9 @@ def get_args():
 
 ### data mgmt ###
 
+
 def get_list_corr_data(opt, severity=None, split="train"):
-    assert split in ['train', 'test']
+    assert split in ["train", "test"]
 
     if opt.src == "SR1":
         prefix = "modelnet_set1"
@@ -86,18 +142,31 @@ def get_list_corr_data(opt, severity=None, split="train"):
     # loads corrupted data
     if severity is None:
         severity = [1, 2, 3, 4]
-    if opt.corruption == 'lidar' or opt.corruption == 'occlusion':
+    if opt.corruption == "lidar" or opt.corruption == "occlusion":
         print(f"loading {opt.corruption} data")
         root = osp.join(opt.data_root, "ModelNet40_corrupted", opt.corruption)
-        file_names = [f"{root}/{prefix}_{split}_{opt.corruption}_sev" + str(i) + ".h5" for i in severity]
+        file_names = [
+            f"{root}/{prefix}_{split}_{opt.corruption}_sev" + str(i) + ".h5"
+            for i in severity
+        ]
         print(f"corr list files: {file_names}\n")
-    elif opt.corruption == 'all':
+    elif opt.corruption == "all":
         print("loading both lidar and occlusion data")
         file_names = []
         root_lidar = osp.join(opt.data_root, "ModelNet40_corrupted", "lidar")
-        file_names.extend([f"{root_lidar}/{prefix}_{split}_lidar_sev" + str(i) + ".h5" for i in severity])
+        file_names.extend(
+            [
+                f"{root_lidar}/{prefix}_{split}_lidar_sev" + str(i) + ".h5"
+                for i in severity
+            ]
+        )
         root_occ = osp.join(opt.data_root, "ModelNet40_corrupted", "occlusion")
-        file_names.extend([f"{root_occ}/{prefix}_{split}_occlusion_sev" + str(i) + ".h5" for i in severity])
+        file_names.extend(
+            [
+                f"{root_occ}/{prefix}_{split}_occlusion_sev" + str(i) + ".h5"
+                for i in severity
+            ]
+        )
         print(f"corr list files: {file_names}\n")
     else:
         raise ValueError(f"Unknown corruption specified: {opt.corruption}")
@@ -108,35 +177,40 @@ def get_list_corr_data(opt, severity=None, split="train"):
     else:
         # synth -> real augm
         warnings.warn(f"Using RW augmentation set for corrupted data")
-        augm_set = transforms.Compose([
-            PointcloudToTensor(),
-            AugmScale(),
-            AugmRotate(axis=[0.0, 1.0, 0.0]),
-            AugmRotatePerturbation(),
-            AugmTranslate(),
-            AugmJitter()
-        ])
+        augm_set = transforms.Compose(
+            [
+                PointcloudToTensor(),
+                AugmScale(),
+                AugmRotate(axis=[0.0, 1.0, 0.0]),
+                AugmRotatePerturbation(),
+                AugmTranslate(),
+                AugmJitter(),
+            ]
+        )
 
     corrupted_datasets = []
     for h5_path in file_names:
-        corrupted_datasets.append(H5_Dataset(h5_file=h5_path, num_points=opt.num_points, transforms=augm_set))
+        corrupted_datasets.append(
+            H5_Dataset(h5_file=h5_path, num_points=opt.num_points, transforms=augm_set)
+        )
 
     return corrupted_datasets
 
 
 # for training routine
 def get_md_loaders(opt):
-    assert opt.src.startswith('SR')
+    assert opt.src.startswith("SR")
     ws, rank = get_ws(), get_rank()
-    drop_last = not str(opt.script_mode).startswith('eval')
+    drop_last = not str(opt.script_mode).startswith("eval")
 
-    if opt.augm_set == 'st':
+    if opt.augm_set == "st":
         set_transforms = [
             PointcloudToTensor(),
             RandomSample(opt.num_points),
             AugmScale(lo=2 / 3, hi=3 / 2),
-            AugmTranslate(translate_range=0.2)]
-    elif opt.augm_set == 'rw':
+            AugmTranslate(translate_range=0.2),
+        ]
+    elif opt.augm_set == "rw":
         # transformation used for Synthetic->Real-World
         set_transforms = [
             PointcloudToTensor(),
@@ -145,7 +219,8 @@ def get_md_loaders(opt):
             AugmRotate(axis=[0.0, 1.0, 0.0]),
             AugmRotatePerturbation(),
             AugmTranslate(),
-            AugmJitter()]
+            AugmJitter(),
+        ]
     else:
         raise ValueError(f"Unknown augmentation set: {opt.augm_set}")
 
@@ -157,42 +232,60 @@ def get_md_loaders(opt):
         train=True,
         num_points=10000,  # sampling as data augm
         class_choice=opt.src,  # modelnet40 or modelnet10,
-        transforms=train_transforms
+        transforms=train_transforms,
     )
 
     print(f"{opt.src} train_data len: {len(train_data)}")
 
     if opt.corruption is not None:
         # load corrupted datasets
-        assert opt.augm_set == 'rw'
+        assert opt.augm_set == "rw"
         l_corr_data = get_list_corr_data(opt)
         assert isinstance(l_corr_data, list)
         assert isinstance(l_corr_data[0], data.Dataset)
         l_corr_data.append(train_data)
         train_data = torch.utils.data.ConcatDataset(l_corr_data)
-        print(f"{opt.src} + corruption {opt.corruption} - train data len: {len(train_data)}")
+        print(
+            f"{opt.src} + corruption {opt.corruption} - train data len: {len(train_data)}"
+        )
 
     test_data = ModelNet40_OOD(
         data_root=opt.data_root,
         train=False,
         num_points=opt.num_points,
         class_choice=opt.src,
-        transforms=None)
+        transforms=None,
+    )
 
-    train_sampler = DistributedSampler(train_data, num_replicas=ws, rank=rank, shuffle=True)
-    test_sampler = DistributedSampler(test_data, num_replicas=ws, rank=rank, shuffle=True)
+    train_sampler = DistributedSampler(
+        train_data, num_replicas=ws, rank=rank, shuffle=True
+    )
+    test_sampler = DistributedSampler(
+        test_data, num_replicas=ws, rank=rank, shuffle=True
+    )
     train_loader = DataLoader(
-        train_data, batch_size=opt.batch_size, drop_last=drop_last, num_workers=opt.num_workers,
-        sampler=train_sampler, worker_init_fn=init_np_seed)
+        train_data,
+        batch_size=opt.batch_size,
+        drop_last=drop_last,
+        num_workers=opt.num_workers,
+        sampler=train_sampler,
+        worker_init_fn=init_np_seed,
+    )
     test_loader = DataLoader(
-        test_data, batch_size=opt.batch_size, drop_last=drop_last, num_workers=opt.num_workers,
-        sampler=test_sampler, worker_init_fn=init_np_seed)
+        test_data,
+        batch_size=opt.batch_size,
+        drop_last=drop_last,
+        num_workers=opt.num_workers,
+        sampler=test_sampler,
+        worker_init_fn=init_np_seed,
+    )
     return train_loader, test_loader
+
 
 ### for evaluation routine ###
 def get_md_eval_loaders(opt):
     assert opt.script_mode.startswith("eval")
-    if not str(opt.src).startswith('SR'):
+    if not str(opt.src).startswith("SR"):
         raise ValueError(f"Unknown modelnet src: {opt.src}")
 
     train_data = ModelNet40_OOD(
@@ -200,7 +293,8 @@ def get_md_eval_loaders(opt):
         train=True,
         num_points=opt.num_points,
         class_choice=opt.src,
-        transforms=None)
+        transforms=None,
+    )
 
     print(f"{opt.src} train data len: {len(train_data)}")
 
@@ -209,7 +303,9 @@ def get_md_eval_loaders(opt):
         l_corr_data = get_list_corr_data(opt)  # list of corrupted datasets
         assert isinstance(l_corr_data, list)
         assert isinstance(l_corr_data[0], data.Dataset)
-        l_corr_data.append(train_data)  # appending clean data to list corrupted datasets
+        l_corr_data.append(
+            train_data
+        )  # appending clean data to list corrupted datasets
         train_data = torch.utils.data.ConcatDataset(l_corr_data)  # concat Dataset
         print(f"Cumulative (clean+corrupted) train data len: {len(train_data)}")
 
@@ -219,30 +315,50 @@ def get_md_eval_loaders(opt):
         train=False,
         num_points=opt.num_points,
         class_choice=opt.src,
-        transforms=None)
+        transforms=None,
+    )
 
-    train_loader = DataLoader(train_data, batch_size=opt.batch_size, num_workers=opt.num_workers,
-                              worker_init_fn=init_np_seed, shuffle=False, drop_last=False)
-    test_loader = DataLoader(test_data, batch_size=opt.batch_size, num_workers=opt.num_workers,
-                             worker_init_fn=init_np_seed, shuffle=False, drop_last=False)
+    train_loader = DataLoader(
+        train_data,
+        batch_size=opt.batch_size,
+        num_workers=opt.num_workers,
+        worker_init_fn=init_np_seed,
+        shuffle=False,
+        drop_last=False,
+    )
+    test_loader = DataLoader(
+        test_data,
+        batch_size=opt.batch_size,
+        num_workers=opt.num_workers,
+        worker_init_fn=init_np_seed,
+        shuffle=False,
+        drop_last=False,
+    )
     return train_loader, test_loader
 
 
 def get_md_react_val_loader(opt):
     print("Building React validation loader...")
     assert opt.script_mode.startswith("eval")
-    if not str(opt.src).startswith('SR'):
+    if not str(opt.src).startswith("SR"):
         raise ValueError(f"Unknown modelnet src: {opt.src}")
 
-    test_data = ModelNet40_OOD(data_root=opt.data_root, train=False, num_points=opt.num_points,
-                               class_choice=opt.src, transforms=None)
+    test_data = ModelNet40_OOD(
+        data_root=opt.data_root,
+        train=False,
+        num_points=opt.num_points,
+        class_choice=opt.src,
+        transforms=None,
+    )
 
     print(f"React Val - {opt.src} data len: {len(test_data)}")
 
     # append corrupted test data
     if opt.corruption:
         print(f"React Val - adding corrupted synthetic data: {opt.corruption}")
-        l_corr_data = get_list_corr_data(opt, split='test')  # list of corrupted test datasets
+        l_corr_data = get_list_corr_data(
+            opt, split="test"
+        )  # list of corrupted test datasets
         assert isinstance(l_corr_data, list)
         assert isinstance(l_corr_data[0], data.Dataset)
         l_corr_data.append(test_data)  # appending clean data to list corrupted datasets
@@ -250,16 +366,23 @@ def get_md_react_val_loader(opt):
         print(f"React Val - cumulative (clean+corrupted) data len: {len(test_data)}\n")
 
     val_data = test_data  # note: modelnet synthetic are not used in synth->real eval
-    val_loader = DataLoader(val_data, batch_size=opt.batch_size, num_workers=opt.num_workers,
-                            worker_init_fn=init_np_seed, shuffle=False, drop_last=False)
+    val_loader = DataLoader(
+        val_data,
+        batch_size=opt.batch_size,
+        num_workers=opt.num_workers,
+        worker_init_fn=init_np_seed,
+        shuffle=False,
+        drop_last=False,
+    )
     return val_loader
+
 
 ##############################
 
 
 def train(opt, config):
     if torch.cuda.device_count() > 1 and is_dist():
-        dist.init_process_group(backend='nccl', init_method='env://')
+        dist.init_process_group(backend="nccl", init_method="env://")
         device_id, device = opt.local_rank, torch.device(opt.local_rank)
         torch.cuda.set_device(device_id)
 
@@ -280,19 +403,27 @@ def train(opt, config):
     if rank == 0:
         safe_make_dirs([opt.models_dir, opt.tb_dir, opt.backup_dir])
         project_dir = os.getcwd()
-        os.system('cp {} {}/'.format(osp.abspath(__file__), opt.backup_dir))
-        os.system('cp -r {} {}/'.format(opt.config, opt.backup_dir))
-        os.system('cp -r {} {}/'.format(osp.join(project_dir, "models"), opt.backup_dir))
-        os.system('cp -r {} {}/'.format(osp.join(project_dir, "datasets"), opt.backup_dir))
-        logger = IOStream(path=osp.join(opt.log_dir, f'log_{int(time.time())}.txt'))
+        os.system("cp {} {}/".format(osp.abspath(__file__), opt.backup_dir))
+        os.system("cp -r {} {}/".format(opt.config, opt.backup_dir))
+        os.system(
+            "cp -r {} {}/".format(osp.join(project_dir, "models"), opt.backup_dir)
+        )
+        os.system(
+            "cp -r {} {}/".format(osp.join(project_dir, "datasets"), opt.backup_dir)
+        )
+        logger = IOStream(path=osp.join(opt.log_dir, f"log_{int(time.time())}.txt"))
         logger.cprint(f"Arguments: {opt}")
         logger.cprint(f"Config: {config}")
         logger.cprint(f"World size: {world_size}\n")
         wandb.login()
         if opt.wandb_name is None:
             opt.wandb_name = opt.exp_name
-        wandb.init(project=opt.wandb_proj, group=opt.wandb_group, name=opt.wandb_name,
-                   config={'arguments': vars(opt), 'config': config})
+        wandb.init(
+            project=opt.wandb_proj,
+            group=opt.wandb_group,
+            name=opt.wandb_name,
+            config={"arguments": vars(opt), "config": config},
+        )
     else:
         logger = None
 
@@ -304,12 +435,13 @@ def train(opt, config):
         logger.cprint(f"{opt.src} train synset: {train_synset}")
 
     if rank == 0:
-        logger.cprint(f"Source: {opt.src}\n"
-                      f"Num training classes: {n_classes}")
+        logger.cprint(f"Source: {opt.src}\n" f"Num training classes: {n_classes}")
 
     # BUILD MODEL
-    model = Classifier(args=DotConfig(config['model']), num_classes=n_classes, loss=opt.loss, cs=opt.cs)
-    enco_name = str(config['model']['ENCO_NAME']).lower()
+    model = Classifier(
+        args=DotConfig(config["model"]), num_classes=n_classes, loss=opt.loss, cs=opt.cs
+    )
+    enco_name = str(config["model"]["ENCO_NAME"]).lower()
     if enco_name == "gdanet":
         model.apply(weight_init_GDA)
     else:
@@ -317,7 +449,9 @@ def train(opt, config):
 
     model = model.cuda()
     if opt.use_sync_bn:
-        assert torch.cuda.device_count() > 1 and is_dist(), "cannot use SyncBatchNorm without distributed data parallel"
+        assert (
+            torch.cuda.device_count() > 1 and is_dist()
+        ), "cannot use SyncBatchNorm without distributed data parallel"
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     if rank == 0:
         logger.cprint(f"Model: \n{model}\n")
@@ -325,7 +459,12 @@ def train(opt, config):
         logger.cprint(f"Loss: {opt.loss}\n")
 
     if torch.cuda.device_count() > 1 and is_dist():
-        model = DDP(model, device_ids=[opt.local_rank], output_device=opt.local_rank, find_unused_parameters=True)
+        model = DDP(
+            model,
+            device_ids=[opt.local_rank],
+            output_device=opt.local_rank,
+            find_unused_parameters=True,
+        )
     if rank == 0:
         wandb.watch(model, log="gradients")
 
@@ -342,32 +481,46 @@ def train(opt, config):
         criterionD = nn.BCELoss()
         # move to distributed
         if torch.cuda.device_count() > 1 and is_dist():
-            netG = DDP(netG, device_ids=[opt.local_rank], output_device=opt.local_rank, find_unused_parameters=True)
-            netD = DDP(netD, device_ids=[opt.local_rank], output_device=opt.local_rank, find_unused_parameters=True)
-        optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.cs_gan_lr, betas=(0.5, 0.999))
-        optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.cs_gan_lr, betas=(0.5, 0.999))
+            netG = DDP(
+                netG,
+                device_ids=[opt.local_rank],
+                output_device=opt.local_rank,
+                find_unused_parameters=True,
+            )
+            netD = DDP(
+                netD,
+                device_ids=[opt.local_rank],
+                output_device=opt.local_rank,
+                find_unused_parameters=True,
+            )
+        optimizerD = torch.optim.Adam(
+            netD.parameters(), lr=opt.cs_gan_lr, betas=(0.5, 0.999)
+        )
+        optimizerG = torch.optim.Adam(
+            netG.parameters(), lr=opt.cs_gan_lr, betas=(0.5, 0.999)
+        )
 
     start_epoch = 1
     glob_it = 0
     if opt.resume:
-        map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+        map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
         ckt = torch.load(opt.resume, map_location=map_location)
-        model.load_state_dict(ckt['model'], strict=True)
-        if opt.script_mode != 'train_exposure':
+        model.load_state_dict(ckt["model"], strict=True)
+        if opt.script_mode != "train_exposure":
             # resume experiment
-            optimizer.load_state_dict(ckt['optimizer'])
-            scheduler.load_state_dict(ckt['scheduler'])
+            optimizer.load_state_dict(ckt["optimizer"])
+            scheduler.load_state_dict(ckt["scheduler"])
             if opt.cs:
-                netG.load_state_dict(ckt['netG'])
-                netD.load_state_dict(ckt['netD'])
+                netG.load_state_dict(ckt["netG"])
+                netD.load_state_dict(ckt["netD"])
             if scaler is not None:
-                assert 'scaler' in ckt.keys(), "No scaler key in ckt"
-                assert ckt['scaler'] is not None, "None scaler object in ckt"
-                scaler.load_state_dict(ckt['scaler'])
+                assert "scaler" in ckt.keys(), "No scaler key in ckt"
+                assert ckt["scaler"] is not None, "None scaler object in ckt"
+                scaler.load_state_dict(ckt["scaler"])
             if rank == 0:
                 logger.cprint("Restart training from checkpoint %s" % opt.resume)
-            start_epoch += int(ckt['epoch'])
-            glob_it += (int(ckt['epoch']) * len(train_loader))
+            start_epoch += int(ckt["epoch"])
+            glob_it += int(ckt["epoch"]) * len(train_loader)
         else:
             # load model weights for OE finetuning
             print(f"Finetuning model {opt.resume} for outlier exposure")
@@ -383,7 +536,7 @@ def train(opt, config):
         train_loader.sampler.set_epoch(epoch)
         test_loader.sampler.set_epoch(epoch)
 
-        if opt.script_mode == 'train_exposure':
+        if opt.script_mode == "train_exposure":
             # finetuning clf for Outlier Exposure with mixup data
             train_epoch_rsmix_exposure(
                 epoch=epoch,
@@ -392,7 +545,8 @@ def train(opt, config):
                 model=model,
                 scaler=scaler,
                 optimizer=optimizer,
-                logger=logger)
+                logger=logger,
+            )
         else:
             # training clf from scratch
             if opt.cs:
@@ -409,7 +563,8 @@ def train(opt, config):
                     criterionD=criterionD,
                     optimizerD=optimizerD,
                     optimizerG=optimizerG,
-                    logger=logger)
+                    logger=logger,
+                )
 
             train_epoch_cla(
                 epoch=epoch,
@@ -418,7 +573,8 @@ def train(opt, config):
                 model=model,
                 scaler=scaler,
                 optimizer=optimizer,
-                logger=logger)
+                logger=logger,
+            )
 
         # step lr
         scheduler.step(epoch)
@@ -431,8 +587,16 @@ def train(opt, config):
             epoch_acc = accuracy_score(src_labels, src_pred)
             epoch_bal_acc = balanced_accuracy_score(src_labels, src_pred)
             if rank == 0:
-                logger.cprint(f"Test [{epoch}/{opt.epochs}]\tAcc: {epoch_acc:.4f}, Bal Acc: {epoch_bal_acc:.4f}")
-                wandb.log({"test/ep_acc": epoch_acc, "test/ep_bal_acc": epoch_bal_acc, "test/epoch": epoch})
+                logger.cprint(
+                    f"Test [{epoch}/{opt.epochs}]\tAcc: {epoch_acc:.4f}, Bal Acc: {epoch_bal_acc:.4f}"
+                )
+                wandb.log(
+                    {
+                        "test/ep_acc": epoch_acc,
+                        "test/ep_bal_acc": epoch_bal_acc,
+                        "test/epoch": epoch,
+                    }
+                )
                 is_best = epoch_acc >= best_acc
                 if is_best:
                     best_acc = epoch_acc
@@ -441,14 +605,26 @@ def train(opt, config):
         # save checkpoint
         if rank == 0:
             ckt_path = osp.join(opt.models_dir, "model_last.pth")
-            save_checkpoint(opt, ckt_path, model, optimizer, scheduler, scaler, config, epoch)
+            save_checkpoint(
+                opt, ckt_path, model, optimizer, scheduler, scaler, config, epoch
+            )
             if is_best:
-                os.system('cp -r {} {}'.format(ckt_path, osp.join(opt.models_dir, f"model_best.pth")))
+                os.system(
+                    "cp -r {} {}".format(
+                        ckt_path, osp.join(opt.models_dir, f"model_best.pth")
+                    )
+                )
             if epoch % opt.save_step == 0:
-                os.system('cp -r {} {}'.format(ckt_path, osp.join(opt.models_dir, f"model_ep{epoch}.pth")))
+                os.system(
+                    "cp -r {} {}".format(
+                        ckt_path, osp.join(opt.models_dir, f"model_ep{epoch}.pth")
+                    )
+                )
     train_time = time.time() - time1
     if rank == 0:
-        logger.cprint(f"Training finished - best test acc: {best_acc:.4f} at ep.: {best_epoch}, time: {train_time}")
+        logger.cprint(
+            f"Training finished - best test acc: {best_acc:.4f} at ep.: {best_epoch}, time: {train_time}"
+        )
 
 
 def eval_ood_md2sonn(opt, config):
@@ -456,39 +632,56 @@ def eval_ood_md2sonn(opt, config):
     set_random_seed(opt.seed)
 
     dataloader_config = {
-        'batch_size': opt.batch_size, 'drop_last': False, 'shuffle': False,
-        'num_workers': opt.num_workers, 'sampler': None, 'worker_init_fn': init_np_seed}
+        "batch_size": opt.batch_size,
+        "drop_last": False,
+        "shuffle": False,
+        "num_workers": opt.num_workers,
+        "sampler": None,
+        "worker_init_fn": init_np_seed,
+    }
 
     # whole evaluation is done on ScanObject RW data
     sonn_args = {
-        'data_root': opt.data_root,
-        'sonn_split': opt.sonn_split,
-        'h5_file': opt.sonn_h5_name,
-        'split': 'all',  # we use both training (unused) and test samples during evaluation
-        'num_points': opt.num_points_test,  # default: use all 2048 sonn points to avoid sampling randomicity
-        'transforms': None  # no augmentation applied at inference time
+        "data_root": opt.data_root,
+        "sonn_split": opt.sonn_split,
+        "h5_file": opt.sonn_h5_name,
+        "split": "all",  # we use both training (unused) and test samples during evaluation
+        "num_points": opt.num_points_test,  # default: use all 2048 sonn points to avoid sampling randomicity
+        "transforms": None,  # no augmentation applied at inference time
     }
 
     train_loader, _ = get_md_eval_loaders(opt)
-    if opt.src == 'SR1':
+    if opt.src == "SR1":
         print("Src is SR1\n")
-        id_loader = DataLoader(ScanObject(class_choice="sonn_2_mdSet1", **sonn_args), **dataloader_config)
-        ood1_loader = DataLoader(ScanObject(class_choice="sonn_2_mdSet2", **sonn_args), **dataloader_config)
-    elif opt.src == 'SR2':
+        id_loader = DataLoader(
+            ScanObject(class_choice="sonn_2_mdSet1", **sonn_args), **dataloader_config
+        )
+        ood1_loader = DataLoader(
+            ScanObject(class_choice="sonn_2_mdSet2", **sonn_args), **dataloader_config
+        )
+    elif opt.src == "SR2":
         print("Src is SR2\n")
-        id_loader = DataLoader(ScanObject(class_choice="sonn_2_mdSet2", **sonn_args), **dataloader_config)
-        ood1_loader = DataLoader(ScanObject(class_choice="sonn_2_mdSet1", **sonn_args), **dataloader_config)
+        id_loader = DataLoader(
+            ScanObject(class_choice="sonn_2_mdSet2", **sonn_args), **dataloader_config
+        )
+        ood1_loader = DataLoader(
+            ScanObject(class_choice="sonn_2_mdSet1", **sonn_args), **dataloader_config
+        )
     else:
         raise ValueError(f"OOD evaluation - wrong src: {opt.src}")
 
     # second SONN out-of-distribution set is common to both SR1 and SR2 sources
     # these are the samples from SONN categories with poor mapping to ModelNet categories
-    ood2_loader = DataLoader(ScanObject(class_choice="sonn_ood_common", **sonn_args), **dataloader_config)
+    ood2_loader = DataLoader(
+        ScanObject(class_choice="sonn_ood_common", **sonn_args), **dataloader_config
+    )
 
     classes_dict = eval(opt.src)
     n_classes = len(set(classes_dict.values()))
-    model = Classifier(args=DotConfig(config['model']), num_classes=n_classes, loss=opt.loss, cs=opt.cs)
-    ckt_weights = torch.load(opt.ckpt_path, map_location='cpu')['model']
+    model = Classifier(
+        args=DotConfig(config["model"]), num_classes=n_classes, loss=opt.loss, cs=opt.cs
+    )
+    ckt_weights = torch.load(opt.ckpt_path, map_location="cpu")["model"]
     ckt_weights = sanitize_model_dict(ckt_weights)
     ckt_weights = convert_model_state(ckt_weights, model.state_dict())
     print(f"Model params count: {count_parameters(model) / 1000000 :.4f} M")
@@ -505,11 +698,53 @@ def eval_ood_md2sonn(opt, config):
     src_MSP_scores = F.softmax(src_logits, dim=1).max(1)[0]
     tar1_MSP_scores = F.softmax(tar1_logits, dim=1).max(1)[0]
     tar2_MSP_scores = F.softmax(tar2_logits, dim=1).max(1)[0]
+
+    # FAILCASE ANALYSIS
+    print("=" * 80)
+    print("\nFailcase Analysis based on MSP Metric:")
+    avg_id_MSP = src_MSP_scores.mean()
+    threshold = avg_id_MSP * 1.1  # default threshold
+
+    # failcases where MSP score exceeds the threshold
+    src_failcases = src_labels[(src_MSP_scores > threshold) & (src_labels != src_pred)]
+
+    # failcases where MSP score exceeds the threshold for tar1
+    tar1_failcases_indices = torch.nonzero(tar1_MSP_scores > threshold).squeeze()
+    tar1_failcases = (
+        tar1_failcases_indices if len(tar1_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    # failcases tar2
+    tar2_failcases_indices = torch.nonzero(tar2_MSP_scores > threshold).squeeze()
+    tar2_failcases = (
+        tar2_failcases_indices if len(tar2_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    print("In-Distribution (ID) Failcases:")
+    print("Total ID Failcases:", len(src_failcases))
+    print("Average MSP score for ID Failcases:", src_MSP_scores[src_failcases].mean())
+    print("\nOut-of-Distribution (OOD) Failcases:")
+    print("Total OOD1 Failcases:", len(tar1_failcases))
+    print(
+        "Average MSP score for OOD1 Failcases:", tar1_MSP_scores[tar1_failcases].mean()
+    )
+    print("Total OOD2 Failcases:", len(tar2_failcases))
+    print(
+        "Average MSP score for OOD2 Failcases:", tar2_MSP_scores[tar2_failcases].mean()
+    )
+    print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+
     eval_ood_sncore(
         scores_list=[src_MSP_scores, tar1_MSP_scores, tar2_MSP_scores],
         preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
-        labels_list=[src_labels, None, None],  # computes also MSP accuracy on ID test set
-        src_label=1)
+        labels_list=[
+            src_labels,
+            None,
+            None,
+        ],  # computes also MSP accuracy on ID test set
+        src_label=1,
+        failcase=True
+    )
     print("#" * 80)
 
     # MLS
@@ -518,11 +753,54 @@ def eval_ood_md2sonn(opt, config):
     src_MLS_scores = src_logits.max(1)[0]
     tar1_MLS_scores = tar1_logits.max(1)[0]
     tar2_MLS_scores = tar2_logits.max(1)[0]
+
+    # FAILCASE ANALYSIS
+    print("=" * 80)
+    print("\nFailcase Analysis based on MLS Metric:")
+    avg_id_MLS = src_MLS_scores.mean()
+    threshold = 1.1 * avg_id_MLS  # default threshold need be adjusted
+
+    # failcases where MLS score exceeds the threshold
+    src_failcases = src_labels[(src_MLS_scores > threshold) & (src_labels != src_pred)]
+
+    # failcases where MLS score exceeds the threshold for tar1
+    tar1_failcases_indices = torch.nonzero(tar1_MLS_scores > threshold).squeeze()
+    tar1_failcases = (
+        tar1_failcases_indices if len(tar1_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    # failcases tar2
+    tar2_failcases_indices = torch.nonzero(tar2_MLS_scores > threshold).squeeze()
+    tar2_failcases = (
+        tar2_failcases_indices if len(tar2_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    print("In-Distribution (ID) Failcases:")
+    print("Total ID Failcases:", len(src_failcases))
+    print("Average MLS score for ID Failcases:", src_MLS_scores[src_failcases].mean())
+    print("\nOut-of-Distribution (OOD) Failcases:")
+    print("Total OOD1 Failcases:", len(tar1_failcases))
+    print(
+        "Average MLS score for OOD1 Failcases:", tar1_MLS_scores[tar1_failcases].mean()
+    )
+    print("Total OOD2 Failcases:", len(tar2_failcases))
+    print(
+        "Average MLS score for OOD2 Failcases:", tar2_MLS_scores[tar2_failcases].mean()
+    )
+    print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+    
+
     eval_ood_sncore(
         scores_list=[src_MLS_scores, tar1_MLS_scores, tar2_MLS_scores],
         preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
-        labels_list=[src_labels, None, None],  # computes also MSP accuracy on ID test set
-        src_label=1)
+        labels_list=[
+            src_labels,
+            None,
+            None,
+        ],  # computes also MSP accuracy on ID test set
+        src_label=1,
+        failcase=True
+    )
     print("#" * 80)
 
     # entropy
@@ -534,13 +812,24 @@ def eval_ood_md2sonn(opt, config):
     eval_ood_sncore(
         scores_list=[src_entropy_scores, tar1_entropy_scores, tar2_entropy_scores],
         preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
-        labels_list=[src_labels, None, None],  # computes also MSP accuracy on ID test set
-        src_label=1)
+        labels_list=[
+            src_labels,
+            None,
+            None,
+        ],  # computes also MSP accuracy on ID test set
+        src_label=1,
+    )
     print("#" * 80)
 
-
     # FEATURES EVALUATION
-    eval_OOD_with_feats(model, train_loader, id_loader, ood1_loader, ood2_loader, save_feats=opt.save_feats)
+    eval_OOD_with_feats(
+        model,
+        train_loader,
+        id_loader,
+        ood1_loader,
+        ood2_loader,
+        save_feats=opt.save_feats,
+    )
 
     # ODIN
     print("\n" + "#" * 80)
@@ -566,14 +855,18 @@ def eval_ood_md2sonn(opt, config):
     src_gradnorm = iterate_data_gradnorm(model, id_loader)
     tar1_gradnorm = iterate_data_gradnorm(model, ood1_loader)
     tar2_gradnorm = iterate_data_gradnorm(model, ood2_loader)
-    eval_ood_sncore(scores_list=[src_gradnorm, tar1_gradnorm, tar2_gradnorm], src_label=1)
+    eval_ood_sncore(
+        scores_list=[src_gradnorm, tar1_gradnorm, tar2_gradnorm], src_label=1
+    )
     print("#" * 80)
 
     # React with id-dependent threshold
     print("\n" + "#" * 80)
     val_loader = get_md_react_val_loader(opt)
     threshold = estimate_react_thres(model, val_loader)
-    print(f"Computing OOD metrics with React (+Energy) normality score, ID-dependent threshold (={threshold:.4f})...")
+    print(
+        f"Computing OOD metrics with React (+Energy) normality score, ID-dependent threshold (={threshold:.4f})..."
+    )
     print(f"React - using {opt.src} test to compute threshold")
     src_react = iterate_data_react(model, id_loader, threshold=threshold)
     tar1_react = iterate_data_react(model, ood1_loader, threshold=threshold)
@@ -583,8 +876,11 @@ def eval_ood_md2sonn(opt, config):
     return
 
 
-def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loader, save_feats=None):
+def eval_OOD_with_feats(
+    model, train_loader, src_loader, tar1_loader, tar2_loader, save_feats=None
+):
     from knn_cuda import KNN
+
     knn = KNN(k=1, transpose_mode=True)
 
     print("\n" + "#" * 80)
@@ -598,7 +894,9 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
     train_labels = train_labels.cpu().numpy()
 
     labels_set = set(train_labels)
-    prototypes = torch.zeros((len(labels_set), train_feats.shape[1]), device=train_feats.device)
+    prototypes = torch.zeros(
+        (len(labels_set), train_feats.shape[1]), device=train_feats.device
+    )
     for idx, lbl in enumerate(labels_set):
         mask = train_labels == lbl
         prototype = train_feats[mask].mean(0)
@@ -606,16 +904,30 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
 
     if save_feats is not None:
         if isinstance(train_loader.dataset, ModelNet40_OOD):
-            labels_2_names = {v: k for k, v in train_loader.dataset.class_choice.items()}
+            labels_2_names = {
+                v: k for k, v in train_loader.dataset.class_choice.items()
+            }
         else:
             labels_2_names = {}
 
         output_dict = {}
         output_dict["labels_2_names"] = labels_2_names
-        output_dict["train_feats"], output_dict["train_labels"] = train_feats.cpu(), train_labels
-        output_dict["id_data_feats"], output_dict["id_data_labels"] = src_feats.cpu(), src_labels
-        output_dict["ood1_data_feats"], output_dict["ood1_data_labels"] = tar1_feats.cpu(), tar1_labels
-        output_dict["ood2_data_feats"], output_dict["ood2_data_labels"] = tar2_feats.cpu(), tar2_labels
+        output_dict["train_feats"], output_dict["train_labels"] = (
+            train_feats.cpu(),
+            train_labels,
+        )
+        output_dict["id_data_feats"], output_dict["id_data_labels"] = (
+            src_feats.cpu(),
+            src_labels,
+        )
+        output_dict["ood1_data_feats"], output_dict["ood1_data_labels"] = (
+            tar1_feats.cpu(),
+            tar1_labels,
+        )
+        output_dict["ood2_data_feats"], output_dict["ood2_data_labels"] = (
+            tar2_feats.cpu(),
+            tar2_labels,
+        )
         torch.save(output_dict, save_feats)
         print(f"Features saved to {save_feats}")
 
@@ -626,7 +938,9 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
     src_dist = src_dist.squeeze().cpu()
     src_ids = src_ids.squeeze().cpu()  # index of nearest training sample
     src_scores = 1 / src_dist
-    src_pred = np.asarray([train_labels[i] for i in src_ids])  # pred is label of nearest training sample
+    src_pred = np.asarray(
+        [train_labels[i] for i in src_ids]
+    )  # pred is label of nearest training sample
 
     # OOD tar1
     tar1_dist, _ = knn(train_feats.unsqueeze(0), tar1_feats.unsqueeze(0))
@@ -642,7 +956,7 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
         scores_list=[src_scores, tar1_scores, tar2_scores],
         preds_list=[src_pred, None, None],  # [src_pred, None, None],
         labels_list=[src_labels, None, None],  # [src_labels, None, None],
-        src_label=1  # confidence should be higher for ID samples
+        src_label=1,  # confidence should be higher for ID samples
     )
 
     print("\nEuclidean distances with prototypes:")
@@ -651,7 +965,9 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
     src_dist = src_dist.squeeze().cpu()
     src_ids = src_ids.squeeze().cpu()  # index of nearest training sample
     src_scores = 1 / src_dist
-    src_pred = np.asarray([train_labels[i] for i in src_ids])  # pred is label of nearest training sample
+    src_pred = np.asarray(
+        [train_labels[i] for i in src_ids]
+    )  # pred is label of nearest training sample
 
     # OOD tar1
     tar1_dist, _ = knn(prototypes.unsqueeze(0), tar1_feats.unsqueeze(0))
@@ -667,7 +983,7 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
         scores_list=[src_scores, tar1_scores, tar2_scores],
         preds_list=[src_pred, None, None],
         labels_list=[src_labels, None, None],
-        src_label=1  # confidence should be higher for ID samples
+        src_label=1,  # confidence should be higher for ID samples
     )
 
     ################################################
@@ -680,13 +996,19 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
     src_scores, src_ids = torch.mm(src_feats, train_feats.t()).max(1)
     tar1_scores, _ = torch.mm(tar1_feats, train_feats.t()).max(1)
     tar2_scores, _ = torch.mm(tar2_feats, train_feats.t()).max(1)
-    src_pred = np.asarray([train_labels[i] for i in src_ids])  # pred is label of nearest training sample
+    src_pred = np.asarray(
+        [train_labels[i] for i in src_ids]
+    )  # pred is label of nearest training sample
 
     eval_ood_sncore(
-        scores_list=[(0.5 * src_scores + 0.5).cpu(), (0.5 * tar1_scores + 0.5).cpu(), (0.5 * tar2_scores + 0.5).cpu()],
+        scores_list=[
+            (0.5 * src_scores + 0.5).cpu(),
+            (0.5 * tar1_scores + 0.5).cpu(),
+            (0.5 * tar2_scores + 0.5).cpu(),
+        ],
         preds_list=[src_pred, None, None],  # [src_pred, None, None],
         labels_list=[src_labels, None, None],  # [src_labels, None, None],
-        src_label=1  # confidence should be higher for ID samples
+        src_label=1,  # confidence should be higher for ID samples
     )
     print("\nCosine similarities with prototypes:")
     # cosine sim in a normalized space
@@ -697,12 +1019,18 @@ def eval_OOD_with_feats(model, train_loader, src_loader, tar1_loader, tar2_loade
     src_scores, src_ids = torch.mm(src_feats, prototypes.t()).max(1)
     tar1_scores, _ = torch.mm(tar1_feats, prototypes.t()).max(1)
     tar2_scores, _ = torch.mm(tar2_feats, prototypes.t()).max(1)
-    src_pred = np.asarray([train_labels[i] for i in src_ids])  # pred is label of nearest training sample
+    src_pred = np.asarray(
+        [train_labels[i] for i in src_ids]
+    )  # pred is label of nearest training sample
     eval_ood_sncore(
-        scores_list=[(0.5 * src_scores + 0.5).cpu(), (0.5 * tar1_scores + 0.5).cpu(), (0.5 * tar2_scores + 0.5).cpu()],
+        scores_list=[
+            (0.5 * src_scores + 0.5).cpu(),
+            (0.5 * tar1_scores + 0.5).cpu(),
+            (0.5 * tar2_scores + 0.5).cpu(),
+        ],
         preds_list=[src_pred, None, None],
         labels_list=[src_labels, None, None],
-        src_label=1  # confidence should be higher for ID samples
+        src_label=1,  # confidence should be higher for ID samples
     )
     print("#" * 80)
 
@@ -711,7 +1039,7 @@ def main():
     args = get_args()
     config = load_yaml(args.config)
 
-    if args.script_mode.startswith('train'):
+    if args.script_mode.startswith("train"):
         # launch trainer
         print("training...")
         assert args.checkpoints_dir is not None and len(args.checkpoints_dir)
@@ -728,5 +1056,5 @@ def main():
         eval_ood_md2sonn(args, config)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

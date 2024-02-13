@@ -548,7 +548,12 @@ def get_ood_metrics(src_scores, tar_scores, src_label=1):
 
 
 def eval_ood_sncore(
-    scores_list, preds_list=None, labels_list=None, src_label=1, silent=False
+    scores_list,
+    preds_list=None,
+    labels_list=None,
+    src_label=1,
+    silent=False,
+    failcase=False,
 ):
     """
     conf_list: [SRC, TAR1, TAR2]
@@ -584,6 +589,19 @@ def eval_ood_sncore(
         if not silent:
             print(f"Src Test - Clf Acc: {src_acc}, Clf Bal Acc: {src_bal_acc}")
 
+        # Print some misclassified cases if failcase is True
+        if failcase:
+            misclassified_indices = np.where(src_preds != src_labels)[0]
+            num_misclassified = min(5, len(misclassified_indices))
+            print("Misclassified Cases:")
+            for i in range(num_misclassified):
+                idx = misclassified_indices[i]
+                predicted_class = src_preds[idx]
+                true_class = src_labels[idx]
+                print(
+                    f"Example {i+1}: Predicted Class - {predicted_class}, True Class - {true_class}"
+                )
+            print("=" * 80)
     # Src vs Tar 1
     res_tar1 = get_ood_metrics(src_conf, tar1_conf, src_label)
 
