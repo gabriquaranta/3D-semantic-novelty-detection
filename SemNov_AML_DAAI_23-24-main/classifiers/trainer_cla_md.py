@@ -701,9 +701,13 @@ def eval_ood_md2sonn(opt, config):
 
     # FAILCASE ANALYSIS
     print("=" * 80)
-    print("\nFailcase Analysis based on MSP Metric:")
-    avg_id_MSP = src_MSP_scores.mean()
-    threshold = avg_id_MSP * 1.1  # default threshold
+    print("Failcase Analysis based on MSP Metric:")
+    avg_src = src_MSP_scores.mean().item()
+    avg_ood1 = tar1_MSP_scores.mean().item()
+    avg_ood2 = tar2_MSP_scores.mean().item()
+    avg = (avg_src + avg_ood1 + avg_ood2) / 3.0
+    threshold = 0.99  # default threshold
+    print("Threshold:", threshold)
 
     # failcases where MSP score exceeds the threshold
     src_failcases = src_labels[(src_MSP_scores > threshold) & (src_labels != src_pred)]
@@ -722,15 +726,20 @@ def eval_ood_md2sonn(opt, config):
 
     print("In-Distribution (ID) Failcases:")
     print("Total ID Failcases:", len(src_failcases))
-    print("Average MSP score for ID Failcases:", src_MSP_scores[src_failcases].mean())
-    print("\nOut-of-Distribution (OOD) Failcases:")
+    print(
+        "Average MSP score for ID Failcases:",
+        src_MSP_scores[src_failcases].mean().item(),
+    )
+    print("Out-of-Distribution (OOD) Failcases:")
     print("Total OOD1 Failcases:", len(tar1_failcases))
     print(
-        "Average MSP score for OOD1 Failcases:", tar1_MSP_scores[tar1_failcases].mean()
+        "Average MSP score for OOD1 Failcases:",
+        tar1_MSP_scores[tar1_failcases.long()].mean().item(),
     )
     print("Total OOD2 Failcases:", len(tar2_failcases))
     print(
-        "Average MSP score for OOD2 Failcases:", tar2_MSP_scores[tar2_failcases].mean()
+        "Average MSP score for OOD2 Failcases:",
+        tar2_MSP_scores[tar2_failcases.long()].mean().item(),
     )
     print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
 
@@ -746,6 +755,8 @@ def eval_ood_md2sonn(opt, config):
         failcase=True,
     )
     print("#" * 80)
+
+    return
 
     # MLS
     print("\n" + "#" * 80)
