@@ -743,7 +743,7 @@ def eval_ood_md2sonn(opt, config):
             None,
         ],  # computes also MSP accuracy on ID test set
         src_label=1,
-        failcase=True
+        failcase=True,
     )
     print("#" * 80)
 
@@ -788,7 +788,6 @@ def eval_ood_md2sonn(opt, config):
         "Average MLS score for OOD2 Failcases:", tar2_MLS_scores[tar2_failcases].mean()
     )
     print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
-    
 
     eval_ood_sncore(
         scores_list=[src_MLS_scores, tar1_MLS_scores, tar2_MLS_scores],
@@ -799,7 +798,7 @@ def eval_ood_md2sonn(opt, config):
             None,
         ],  # computes also MSP accuracy on ID test set
         src_label=1,
-        failcase=True
+        failcase=True,
     )
     print("#" * 80)
 
@@ -957,6 +956,7 @@ def eval_OOD_with_feats(
         preds_list=[src_pred, None, None],  # [src_pred, None, None],
         labels_list=[src_labels, None, None],  # [src_labels, None, None],
         src_label=1,  # confidence should be higher for ID samples
+        failcase=True,
     )
 
     print("\nEuclidean distances with prototypes:")
@@ -979,11 +979,41 @@ def eval_OOD_with_feats(
     tar2_dist = tar2_dist.squeeze().cpu()
     tar2_scores = 1 / tar2_dist
 
+    print("Failcase Analysis based on Euclidean distance:")
+    avg_id_dist = src_scores.mean()
+    threshold = avg_id_dist * 1.1  # default threshold
+
+    # failcases where distance exceeds the threshold
+    src_failcases = src_labels[(src_scores > threshold) & (src_labels != src_pred)]
+
+    # failcases where distance exceeds the threshold for tar1
+    tar1_failcases_indices = torch.nonzero(tar1_scores > threshold).squeeze()
+    tar1_failcases = (
+        tar1_failcases_indices if len(tar1_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    # failcases tar2
+    tar2_failcases_indices = torch.nonzero(tar2_scores > threshold).squeeze()
+    tar2_failcases = (
+        tar2_failcases_indices if len(tar2_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    print("In-Distribution (ID) Failcases:")
+    print("Total ID Failcases:", len(src_failcases))
+    print("Average distance for ID Failcases:", src_scores[src_failcases].mean())
+    print("\nOut-of-Distribution (OOD) Failcases:")
+    print("Total OOD1 Failcases:", len(tar1_failcases))
+    print("Average distance for OOD1 Failcases:", tar1_scores[tar1_failcases].mean())
+    print("Total OOD2 Failcases:", len(tar2_failcases))
+    print("Average distance for OOD2 Failcases:", tar2_scores[tar2_failcases].mean())
+    print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+
     eval_ood_sncore(
         scores_list=[src_scores, tar1_scores, tar2_scores],
         preds_list=[src_pred, None, None],
         labels_list=[src_labels, None, None],
         src_label=1,  # confidence should be higher for ID samples
+        failcase=True,
     )
 
     ################################################
