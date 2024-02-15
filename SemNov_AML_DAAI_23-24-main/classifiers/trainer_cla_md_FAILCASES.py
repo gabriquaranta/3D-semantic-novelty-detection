@@ -689,8 +689,8 @@ def eval_ood_md2sonn(opt, config):
     model = model.cuda().eval()
 
     src_logits, src_pred, src_labels = get_network_output(model, id_loader)
-    tar1_logits, _, _ = get_network_output(model, ood1_loader)
-    tar2_logits, _, _ = get_network_output(model, ood2_loader)
+    tar1_logits, tar1_pred, tar1_labels = get_network_output(model, ood1_loader)
+    tar2_logits, tar2_pred, tar2_labels = get_network_output(model, ood2_loader)
 
     # MSP
     print("\n" + "#" * 80)
@@ -705,9 +705,9 @@ def eval_ood_md2sonn(opt, config):
     avg_src = src_MSP_scores.mean().item()
     avg_ood1 = tar1_MSP_scores.mean().item()
     avg_ood2 = tar2_MSP_scores.mean().item()
-    print("Avg ID:",avg_src)
-    print("Avg OOD:",(avg_ood1+avg_ood2)/2.0)
-    threshold = 0.98  # default threshold
+    print("Avg ID:", avg_src)
+    print("Avg OOD:", (avg_ood1 + avg_ood2) / 2.0)
+    threshold = 0.99  # default threshold
     print("Threshold:", threshold)
 
     # failcases where MSP score exceeds the threshold
@@ -744,6 +744,9 @@ def eval_ood_md2sonn(opt, config):
     )
     print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
 
+    print("Tar1Failcases:", tar1_failcases)
+    print("Tar2Failcases:", tar2_failcases)
+
     eval_ood_sncore(
         scores_list=[src_MSP_scores, tar1_MSP_scores, tar2_MSP_scores],
         preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
@@ -768,7 +771,6 @@ def eval_ood_md2sonn(opt, config):
     )
 
     return
-
 
 
 def eval_OOD_with_feats(
@@ -871,13 +873,25 @@ def eval_OOD_with_feats(
 
     print("\nIn-Distribution (ID) Failcases:")
     print("Total ID Failcases:", len(src_failcases))
-    print("Average distance for ID Failcases:", src_scores[src_failcases.long().cpu()].mean().item())
+    print(
+        "Average distance for ID Failcases:",
+        src_scores[src_failcases.long().cpu()].mean().item(),
+    )
     print("Out-of-Distribution (OOD) Failcases:")
     print("Total OOD1 Failcases:", len(tar1_failcases))
-    print("Average distance for OOD1 Failcases:", tar1_scores[tar1_failcases.long().cpu()].mean().item())
+    print(
+        "Average distance for OOD1 Failcases:",
+        tar1_scores[tar1_failcases.long().cpu()].mean().item(),
+    )
     print("Total OOD2 Failcases:", len(tar2_failcases))
-    print("Average distance for OOD2 Failcases:", tar2_scores[tar2_failcases.long().cpu()].mean().item())
+    print(
+        "Average distance for OOD2 Failcases:",
+        tar2_scores[tar2_failcases.long().cpu()].mean().item(),
+    )
     print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+
+    print("Tar1Failcases:", tar1_failcases)
+    print("Tar2Failcases:", tar2_failcases)
 
     eval_ood_sncore(
         scores_list=[src_scores, tar1_scores, tar2_scores],

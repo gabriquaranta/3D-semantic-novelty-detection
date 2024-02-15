@@ -188,6 +188,7 @@ def get_network_output(model, loader, softmax=True):
 
     Models accept point clouds of shape [B, 6, N] (XYZ-RGB) and trained with N = 10000.
 
+    OPenshape:
     Point clouds should be centered at centroid and normalized into the unit
     ball, and RGB values should have range [0, 1]. If you don't have RGB
     available in your point cloud, fill with [0.4, 0.4, 0.4].
