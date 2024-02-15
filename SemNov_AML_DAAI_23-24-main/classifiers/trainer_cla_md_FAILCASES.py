@@ -699,6 +699,51 @@ def eval_ood_md2sonn(opt, config):
     tar1_MSP_scores = F.softmax(tar1_logits, dim=1).max(1)[0]
     tar2_MSP_scores = F.softmax(tar2_logits, dim=1).max(1)[0]
 
+    # FAILCASE ANALYSIS
+    print("=" * 80)
+    print("Failcase Analysis based on MSP Metric:")
+    avg_src = src_MSP_scores.mean().item()
+    avg_ood1 = tar1_MSP_scores.mean().item()
+    avg_ood2 = tar2_MSP_scores.mean().item()
+    print("Avg ID:",avg_src)
+    print("Avg OOD:",(avg_ood1+avg_ood2)/2.0)
+    threshold = 0.98  # default threshold
+    print("Threshold:", threshold)
+
+    # failcases where MSP score exceeds the threshold
+    src_failcases = src_labels[(src_MSP_scores > threshold) & (src_labels != src_pred)]
+
+    # failcases where MSP score exceeds the threshold for tar1
+    tar1_failcases_indices = torch.nonzero(tar1_MSP_scores > threshold).squeeze()
+    tar1_failcases = (
+        tar1_failcases_indices if len(tar1_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    # failcases tar2
+    tar2_failcases_indices = torch.nonzero(tar2_MSP_scores > threshold).squeeze()
+    tar2_failcases = (
+        tar2_failcases_indices if len(tar2_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    print("\nIn-Distribution (ID) Failcases:")
+    print("Total ID Failcases:", len(src_failcases))
+    print(
+        "Average MSP score for ID Failcases:",
+        src_MSP_scores[src_failcases].mean().item(),
+    )
+    print("Out-of-Distribution (OOD) Failcases:")
+    print("Total OOD1 Failcases:", len(tar1_failcases))
+    print(
+        "Average MSP score for OOD1 Failcases:",
+        tar1_MSP_scores[tar1_failcases.long()].mean().item(),
+    )
+    print("Total OOD2 Failcases:", len(tar2_failcases))
+    print(
+        "Average MSP score for OOD2 Failcases:",
+        tar2_MSP_scores[tar2_failcases.long()].mean().item(),
+    )
+    print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+
     eval_ood_sncore(
         scores_list=[src_MSP_scores, tar1_MSP_scores, tar2_MSP_scores],
         preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
@@ -708,43 +753,7 @@ def eval_ood_md2sonn(opt, config):
             None,
         ],  # computes also MSP accuracy on ID test set
         src_label=1,
-    )
-    print("#" * 80)
-
-    # MLS
-    print("\n" + "#" * 80)
-    print("Computing OOD metrics with MLS normality score...")
-    src_MLS_scores = src_logits.max(1)[0]
-    tar1_MLS_scores = tar1_logits.max(1)[0]
-    tar2_MLS_scores = tar2_logits.max(1)[0]
-
-    eval_ood_sncore(
-        scores_list=[src_MLS_scores, tar1_MLS_scores, tar2_MLS_scores],
-        preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
-        labels_list=[
-            src_labels,
-            None,
-            None,
-        ],  # computes also MSP accuracy on ID test set
-        src_label=1,
-    )
-    print("#" * 80)
-
-    # entropy
-    print("\n" + "#" * 80)
-    src_entropy_scores = 1 / logits_entropy_loss(src_logits)
-    tar1_entropy_scores = 1 / logits_entropy_loss(tar1_logits)
-    tar2_entropy_scores = 1 / logits_entropy_loss(tar2_logits)
-    print("Computing OOD metrics with entropy normality score...")
-    eval_ood_sncore(
-        scores_list=[src_entropy_scores, tar1_entropy_scores, tar2_entropy_scores],
-        preds_list=[src_pred, None, None],  # computes also MSP accuracy on ID test set
-        labels_list=[
-            src_labels,
-            None,
-            None,
-        ],  # computes also MSP accuracy on ID test set
-        src_label=1,
+        failcase=True,
     )
     print("#" * 80)
 
@@ -758,49 +767,8 @@ def eval_ood_md2sonn(opt, config):
         save_feats=opt.save_feats,
     )
 
-    # ODIN
-    print("\n" + "#" * 80)
-    print("Computing OOD metrics with ODIN normality score...")
-    src_odin = iterate_data_odin(model, id_loader)
-    tar1_odin = iterate_data_odin(model, ood1_loader)
-    tar2_odin = iterate_data_odin(model, ood2_loader)
-    eval_ood_sncore(scores_list=[src_odin, tar1_odin, tar2_odin], src_label=1)
-    print("#" * 80)
-
-    # Energy
-    print("\n" + "#" * 80)
-    print("Computing OOD metrics with Energy normality score...")
-    src_energy = iterate_data_energy(model, id_loader)
-    tar1_energy = iterate_data_energy(model, ood1_loader)
-    tar2_energy = iterate_data_energy(model, ood2_loader)
-    eval_ood_sncore(scores_list=[src_energy, tar1_energy, tar2_energy], src_label=1)
-    print("#" * 80)
-
-    # GradNorm
-    print("\n" + "#" * 80)
-    print("Computing OOD metrics with GradNorm normality score...")
-    src_gradnorm = iterate_data_gradnorm(model, id_loader)
-    tar1_gradnorm = iterate_data_gradnorm(model, ood1_loader)
-    tar2_gradnorm = iterate_data_gradnorm(model, ood2_loader)
-    eval_ood_sncore(
-        scores_list=[src_gradnorm, tar1_gradnorm, tar2_gradnorm], src_label=1
-    )
-    print("#" * 80)
-
-    # React with id-dependent threshold
-    print("\n" + "#" * 80)
-    val_loader = get_md_react_val_loader(opt)
-    threshold = estimate_react_thres(model, val_loader)
-    print(
-        f"Computing OOD metrics with React (+Energy) normality score, ID-dependent threshold (={threshold:.4f})..."
-    )
-    print(f"React - using {opt.src} test to compute threshold")
-    src_react = iterate_data_react(model, id_loader, threshold=threshold)
-    tar1_react = iterate_data_react(model, ood1_loader, threshold=threshold)
-    tar2_react = iterate_data_react(model, ood2_loader, threshold=threshold)
-    eval_ood_sncore(scores_list=[src_react, tar1_react, tar2_react], src_label=1)
-    print("#" * 80)
     return
+
 
 
 def eval_OOD_with_feats(
@@ -879,60 +847,48 @@ def eval_OOD_with_feats(
     tar2_dist = tar2_dist.squeeze().cpu()
     tar2_scores = 1 / tar2_dist
 
+    print("=" * 80)
+    print("Failcase Analysis based on Euclidean distance:")
+    avg_id_dist = src_scores.mean().item()
+    print("Avg ID distance:", avg_id_dist)
+    threshold = avg_id_dist * 1.1  # default threshold
+    print("Threshold:", threshold)
+
+    # failcases where distance exceeds the threshold
+    src_failcases = src_labels[(src_scores > threshold) & (src_labels != src_pred)]
+
+    # failcases where distance exceeds the threshold for tar1
+    tar1_failcases_indices = torch.nonzero(tar1_scores > threshold).squeeze()
+    tar1_failcases = (
+        tar1_failcases_indices if len(tar1_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    # failcases tar2
+    tar2_failcases_indices = torch.nonzero(tar2_scores > threshold).squeeze()
+    tar2_failcases = (
+        tar2_failcases_indices if len(tar2_failcases_indices) > 0 else torch.tensor([])
+    )
+
+    print("\nIn-Distribution (ID) Failcases:")
+    print("Total ID Failcases:", len(src_failcases))
+    print("Average distance for ID Failcases:", src_scores[src_failcases.long().cpu()].mean().item())
+    print("Out-of-Distribution (OOD) Failcases:")
+    print("Total OOD1 Failcases:", len(tar1_failcases))
+    print("Average distance for OOD1 Failcases:", tar1_scores[tar1_failcases.long().cpu()].mean().item())
+    print("Total OOD2 Failcases:", len(tar2_failcases))
+    print("Average distance for OOD2 Failcases:", tar2_scores[tar2_failcases.long().cpu()].mean().item())
+    print("Total OOD Failcases:", len(tar1_failcases) + len(tar2_failcases))
+
     eval_ood_sncore(
         scores_list=[src_scores, tar1_scores, tar2_scores],
         preds_list=[src_pred, None, None],  # [src_pred, None, None],
         labels_list=[src_labels, None, None],  # [src_labels, None, None],
         src_label=1,  # confidence should be higher for ID samples
+        failcase=True,
     )
 
-    ################################################
-    print("\nCosine similarities on the hypersphere:")
-    # cosine sim in a normalized space
-    train_feats = F.normalize(train_feats, p=2, dim=1)
-    src_feats = F.normalize(src_feats, p=2, dim=1)
-    tar1_feats = F.normalize(tar1_feats, p=2, dim=1)
-    tar2_feats = F.normalize(tar2_feats, p=2, dim=1)
-    src_scores, src_ids = torch.mm(src_feats, train_feats.t()).max(1)
-    tar1_scores, _ = torch.mm(tar1_feats, train_feats.t()).max(1)
-    tar2_scores, _ = torch.mm(tar2_feats, train_feats.t()).max(1)
-    src_pred = np.asarray(
-        [train_labels[i] for i in src_ids]
-    )  # pred is label of nearest training sample
-
-    eval_ood_sncore(
-        scores_list=[
-            (0.5 * src_scores + 0.5).cpu(),
-            (0.5 * tar1_scores + 0.5).cpu(),
-            (0.5 * tar2_scores + 0.5).cpu(),
-        ],
-        preds_list=[src_pred, None, None],  # [src_pred, None, None],
-        labels_list=[src_labels, None, None],  # [src_labels, None, None],
-        src_label=1,  # confidence should be higher for ID samples
-    )
-    print("\nCosine similarities with prototypes:")
-    # cosine sim in a normalized space
-    prototypes = F.normalize(prototypes, p=2, dim=1)
-    src_feats = F.normalize(src_feats, p=2, dim=1)
-    tar1_feats = F.normalize(tar1_feats, p=2, dim=1)
-    tar2_feats = F.normalize(tar2_feats, p=2, dim=1)
-    src_scores, src_ids = torch.mm(src_feats, prototypes.t()).max(1)
-    tar1_scores, _ = torch.mm(tar1_feats, prototypes.t()).max(1)
-    tar2_scores, _ = torch.mm(tar2_feats, prototypes.t()).max(1)
-    src_pred = np.asarray(
-        [train_labels[i] for i in src_ids]
-    )  # pred is label of nearest training sample
-    eval_ood_sncore(
-        scores_list=[
-            (0.5 * src_scores + 0.5).cpu(),
-            (0.5 * tar1_scores + 0.5).cpu(),
-            (0.5 * tar2_scores + 0.5).cpu(),
-        ],
-        preds_list=[src_pred, None, None],
-        labels_list=[src_labels, None, None],
-        src_label=1,  # confidence should be higher for ID samples
-    )
     print("#" * 80)
+    return
 
 
 def main():
