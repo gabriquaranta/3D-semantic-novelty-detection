@@ -594,7 +594,7 @@ def eval_ood_sncore(
         if failcase:
             misclassified_indices = np.where(src_preds != src_labels)[0]
             num_misclassified = min(5, len(misclassified_indices))
-            print("Misclassified Cases:")
+            print("Misclassified Cases ID:")
             for i in range(num_misclassified):
                 idx = misclassified_indices[i]
                 predicted_class = src_preds[idx]
