@@ -605,16 +605,16 @@ def eval_ood_sncore(
     # as we use label 1 for IN-DISTRIBUTION and thus we consider it positive.
     # the ood_metrics library argue to use
 
-    # sr1
-    realLabel_names = ["chair", "shelf", "door", "sink", "sofa"]
-    tar1Label_names = ["bed", "toilet", "desk", "display"]
+    # sr2
+    realLabel_names = ["bed", "toilet", "desk", "display", "table"]
+    tar1Label_names = ["chair", "shelf", "door", "sink", "sofa"]
     tar2Label_names = ["bag", "bin", "box", "cabinet", "pillow"]
 
     ######### FAILCASE
     if method == "msp":
-        # threshold = src score such that 85% id are classified correctly
+        # threshold = src score such that 80% id are classified correctly
         t = src_conf.cpu()
-        threshold = np.percentile(t, 85)
+        threshold = np.percentile(t, 80)
 
         print("=" * 40)
         print("FAILCASES MSP")
@@ -634,12 +634,12 @@ def eval_ood_sncore(
                 pred = tar1_preds[i]
                 actual = tar1_labels[i]
                 print(
-                    f"Confidence: {conf:.4f}, Predicted: {tar1Label_names[pred]}, Actual: {realLabel_names[actual]}"
+                    f"Confidence: {conf:.4f}, Predicted: {realLabel_names[pred]}, Actual: {tar1Label_names[actual]}"
                 )
 
     elif method == "distance":
         t = src_conf.cpu()
-        threshold = np.percentile(t, 85)
+        threshold = np.percentile(t, 80)
 
         print("=" * 40)
         print("FAILCASES DISTANCE")
@@ -659,12 +659,12 @@ def eval_ood_sncore(
                 pred = tar1_preds[i]
                 actual = tar1_labels[i]
                 print(
-                    f"Confidence: {conf:.4f}, Predicted: {tar1Label_names[pred]}, Actual: {realLabel_names[actual]}"
+                    f"Confidence: {conf:.4f}, Predicted: {realLabel_names[pred]}, Actual: {tar1Label_names[actual]}"
                 )
 
     else:
         print("Method not recognized for failcase")
-
+    print("=" * 40)
     if not silent:
         print_ood_output(res_tar1, res_tar2, res_big_tar)
         print(

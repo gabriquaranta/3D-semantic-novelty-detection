@@ -5,11 +5,21 @@ import h5py
 
 # ALL SONN LABELS
 SONN_label_dict = {
-    "bag": 0, "bin": 1, "box": 2,
-    "cabinet": 3, "chair": 4, "desk": 5,
-    "display": 6, "door": 7, "shelf": 8,
-    "table": 9, "bed": 10, "pillow": 11,
-    "sink": 12, "sofa": 13, "toilet": 14
+    "bag": 0,
+    "bin": 1,
+    "box": 2,
+    "cabinet": 3,
+    "chair": 4,
+    "desk": 5,
+    "display": 6,
+    "door": 7,
+    "shelf": 8,
+    "table": 9,
+    "bed": 10,
+    "pillow": 11,
+    "sink": 12,
+    "sofa": 13,
+    "toilet": 14,
 }
 
 # all SONN categories but merging desk and table to same class
@@ -28,7 +38,7 @@ sonn_all = {
     11: 10,  # "pillow"
     12: 11,  # "sink"
     13: 12,  # "sofa"
-    14: 13  # "toilet"
+    14: 13,  # "toilet"
 }
 
 # modelnet_set1 ==> SONN
@@ -37,7 +47,7 @@ sonn_2_mdSet1 = {
     8: 1,  # shelf
     7: 2,  # door
     12: 3,  # sink
-    13: 4  # sofa
+    13: 4,  # sofa
 }
 
 # modelnet_set2 ==> SONN
@@ -46,7 +56,7 @@ sonn_2_mdSet2 = {
     14: 1,  # toilet
     5: 2,  # desk
     6: 3,  # display
-    9: 2  # table
+    9: 2,  # table
 }
 
 # common ood set
@@ -56,7 +66,7 @@ sonn_ood_common = {
     1: 404,  # bin
     2: 404,  # box
     3: 404,  # cabinet
-    11: 404  # pillow
+    11: 404,  # pillow
 }
 
 
@@ -89,7 +99,7 @@ SR13 = {
     1: 6,  # bin
     2: 7,  # box
     3: 8,  # cabinet
-    11: 9  # pillow
+    11: 9,  # pillow
 }
 
 
@@ -111,9 +121,9 @@ SR23 = {
 
 
 def load_h5_data_label(h5_path):
-    f = h5py.File(h5_path, 'r')
-    curr_data = f['data'][:]
-    curr_label = f['label'][:]
+    f = h5py.File(h5_path, "r")
+    curr_data = f["data"][:]
+    curr_label = f["label"][:]
     f.close()
     return np.asarray(curr_data), np.asarray(curr_label)
 
@@ -122,29 +132,32 @@ def load_h5_data_label_list(h5_paths):
     curr_data = []
     curr_label = []
     for curr_h5 in h5_paths:
-        f = h5py.File(curr_h5, 'r')
-        curr_data.extend(f['data'][:])
-        curr_label.extend(f['label'][:])
+        f = h5py.File(curr_h5, "r")
+        curr_data.extend(f["data"][:])
+        curr_label.extend(f["label"][:])
         f.close()
     return np.asarray(curr_data), np.asarray(curr_label)
 
 
 class ScanObject(data.Dataset):
     def __init__(
-            self,
-            data_root="/home/antonioa/data",
-            sonn_split="main_split",
-            h5_file="objectdataset.h5",
-            split="train",
-            class_choice=None,
-            num_points=1024,
-            transforms=None):
+        self,
+        data_root="/home/antonioa/data",
+        sonn_split="main_split",
+        h5_file="objectdataset.h5",
+        split="train",
+        class_choice=None,
+        num_points=1024,
+        transforms=None,
+    ):
 
         self.whoami = "ScanObject"
-        assert split in ['train', 'test', 'all']
+        assert split in ["train", "test", "all"]
         self.split = split
         self.data_dir = osp.join(data_root, "ScanObjectNN/h5_files")
-        assert osp.exists(self.data_dir), f"{self.whoami} - {self.data_dir} does not exist"
+        assert osp.exists(
+            self.data_dir
+        ), f"{self.whoami} - {self.data_dir} does not exist"
         self.num_points = num_points
         self.transforms = transforms
         self.sonn_split = sonn_split
@@ -156,8 +169,10 @@ class ScanObject(data.Dataset):
         elif self.split == "test":
             h5_file_path = [osp.join(self.data_dir, sonn_split, f"test_{h5_file}")]
         elif self.split == "all":
-            h5_file_path = [osp.join(self.data_dir, sonn_split, f"training_{h5_file}"),
-                            osp.join(self.data_dir, sonn_split, f"test_{h5_file}")]
+            h5_file_path = [
+                osp.join(self.data_dir, sonn_split, f"training_{h5_file}"),
+                osp.join(self.data_dir, sonn_split, f"test_{h5_file}"),
+            ]
         else:
             raise ValueError(f"Wrong SONN split: {self.split}")
 
@@ -172,9 +187,15 @@ class ScanObject(data.Dataset):
             if isinstance(self.class_choice, str):
                 self.class_choice = eval(self.class_choice)
             if not isinstance(self.class_choice, dict):
-                raise ValueError(f"{self.whoami} - cannot load conversion dict with class_choice: {class_choice}")
+                raise ValueError(
+                    f"{self.whoami} - cannot load conversion dict with class_choice: {class_choice}"
+                )
 
-            chosen_idxs = [index for index, value in enumerate(self.labels) if value in self.class_choice.keys()]
+            chosen_idxs = [
+                index
+                for index, value in enumerate(self.labels)
+                if value in self.class_choice.keys()
+            ]
             assert len(chosen_idxs) > 0
             self.datas = self.datas[chosen_idxs]
             self.labels = [self.class_choice[self.labels[idx]] for idx in chosen_idxs]
@@ -182,13 +203,16 @@ class ScanObject(data.Dataset):
         else:
             self.num_classes = len(SONN_label_dict.keys())
 
-        print(f"ScanObject - "
-              f"num_points: {self.num_points}, "
-              f"sonn_split: {self.sonn_split}, "
-              f"h5_suffix: {self.h5_file}, "
-              f"split: {self.split}, "
-              f"class_choice: {self.class_choice}, "
-              f"num samples: {len(self.datas)}")
+        print(
+            f"ScanObject - "
+            f"num_points: {self.num_points}, "
+            f"sonn_split: {self.sonn_split}, "
+            f"h5_suffix: {self.h5_file}, "
+            f"split: {self.split}, "
+            f"class_choice: {self.class_choice}, "
+            f"labels: {set(self.labels)},"
+            f"num samples: {len(self.datas)}"
+        )
 
     def __getitem__(self, index):
         point_set = np.asarray(self.datas[index], dtype=np.float32)
