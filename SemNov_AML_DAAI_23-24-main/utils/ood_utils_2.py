@@ -591,7 +591,6 @@ def eval_ood_sncore(
         if not silent:
             print(f"Src Test - Clf Acc: {src_acc}, Clf Bal Acc: {src_bal_acc}")
 
-
     # Src vs Tar 1
     res_tar1 = get_ood_metrics(src_conf, tar1_conf, src_label)
 
@@ -606,52 +605,65 @@ def eval_ood_sncore(
     # as we use label 1 for IN-DISTRIBUTION and thus we consider it positive.
     # the ood_metrics library argue to use
 
+    # sr1
     realLabel_names = ["chair", "shelf", "door", "sink", "sofa"]
     tar1Label_names = ["bed", "toilet", "desk", "display"]
-    tar2Label_names = ["bag","bin","box","cabinet","pillow"]
+    tar2Label_names = ["bag", "bin", "box", "cabinet", "pillow"]
 
     ######### FAILCASE
     if method == "msp":
-        # threshold = src score such that 90% are classified correctly
-        threshold= np.percentile(src_conf, 90)      
+        # threshold = src score such that 85% id are classified correctly
+        t = src_conf.cpu()
+        threshold = np.percentile(t, 85)
 
-        print("="*40)
+        print("=" * 40)
         print("FAILCASES MSP")
         print("Avg ID score:", src_conf.mean().item())
-        print("Avg OOD score:", big_tar_conf.mean().item())
+        print("Avg OOD score:", tar1_conf.mean().item())
         print("Threshold:", threshold)
-        print("Total Misclassified OOD:", (big_tar_conf > threshold).sum().item(), ", out of:", big_tar_conf.shape[0])
+        print(
+            "Total Misclassified OOD:",
+            (tar1_conf > threshold).sum().item(),
+            ", out of:",
+            tar1_conf.shape[0],
+        )
         print("Misclassifications:")
-        for i in range(big_tar_conf.shape[0]):
-            if big_tar_conf[i] > threshold:
-                conf=big_tar_conf[i]
-                pred_class = realLabel_names[src_preds[i]]
-                actual_class = tar1Label_names[tar1_labels[i]] if i < tar1_conf.shape[0] else tar2Label_names[tar2_labels[i-tar1_conf.shape[0]]]
-                print(f"Confidence: {conf:.4f}, Predicted: {pred_class}, Actual: {actual_class}")
+        for i in range(len(tar1_conf)):
+            if tar1_conf[i] > threshold:
+                conf = tar1_conf[i]
+                pred = tar1_preds[i]
+                actual = tar1_labels[i]
+                print(
+                    f"Confidence: {conf:.4f}, Predicted: {tar1Label_names[pred]}, Actual: {realLabel_names[actual]}"
+                )
 
     elif method == "distance":
-        # threshold = src score such that 90% are classified correctly
-        threshold= np.percentile(src_conf, 90)      
+        t = src_conf.cpu()
+        threshold = np.percentile(t, 85)
 
-        print("="*40)
+        print("=" * 40)
         print("FAILCASES DISTANCE")
         print("Avg ID score:", src_conf.mean().item())
-        print("Avg OOD score:", big_tar_conf.mean().item())
+        print("Avg OOD score:", tar1_conf.mean().item())
         print("Threshold:", threshold)
-        print("Total Misclassified OOD:", (big_tar_conf > threshold).sum().item(), ", out of:", big_tar_conf.shape[0])
+        print(
+            "Total Misclassified OOD:",
+            (tar1_conf > threshold).sum().item(),
+            ", out of:",
+            tar1_conf.shape[0],
+        )
         print("Misclassifications:")
-        for i in range(big_tar_conf.shape[0]):
-            if big_tar_conf[i] > threshold:
-                conf=big_tar_conf[i]
-                pred_class = realLabel_names[src_preds[i]] 
-                actual_class = tar1Label_names[tar1_labels[i]] if i < tar1_conf.shape[0] else tar2Label_names[tar2_labels[i-tar1_conf.shape[0]]]
-                print(f"Confidence: {conf:.4f}, Predicted: {pred_class}, Actual: {actual_class}")
+        for i in range(tar1_conf.shape[0]):
+            if tar1_conf[i] > threshold:
+                conf = tar1_conf[i]
+                pred = tar1_preds[i]
+                actual = tar1_labels[i]
+                print(
+                    f"Confidence: {conf:.4f}, Predicted: {tar1Label_names[pred]}, Actual: {realLabel_names[actual]}"
+                )
 
     else:
         print("Method not recognized for failcase")
-
-
-
 
     if not silent:
         print_ood_output(res_tar1, res_tar2, res_big_tar)

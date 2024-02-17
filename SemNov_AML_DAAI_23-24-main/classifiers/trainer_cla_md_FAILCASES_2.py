@@ -796,19 +796,23 @@ def eval_OOD_with_feats(
     )  # pred is label of nearest training sample
 
     # OOD tar1
-    tar1_dist, _ = knn(train_feats.unsqueeze(0), tar1_feats.unsqueeze(0))
+    tar1_dist, t1ids = knn(train_feats.unsqueeze(0), tar1_feats.unsqueeze(0))
     tar1_dist = tar1_dist.squeeze().cpu()
     tar1_scores = 1 / tar1_dist
+    t1ids = t1ids.squeeze().cpu()
+    tar1_pred = np.asarray([train_labels[i] for i in t1ids])
 
     # OOD tar2
-    tar2_dist, _ = knn(train_feats.unsqueeze(0), tar2_feats.unsqueeze(0))
+    tar2_dist, t2ids = knn(train_feats.unsqueeze(0), tar2_feats.unsqueeze(0))
     tar2_dist = tar2_dist.squeeze().cpu()
     tar2_scores = 1 / tar2_dist
+    t2ids = t2ids.squeeze().cpu()
+    tar2_pred = np.asarray([train_labels[i] for i in t2ids])
 
     eval_ood_sncore(
         scores_list=[src_scores, tar1_scores, tar2_scores],
-        preds_list=[src_pred, None, None],  # [src_pred, None, None],
-        labels_list=[src_labels, None, None],  # [src_labels, None, None],
+        preds_list=[src_pred, tar1_pred, tar2_dist],  # [src_pred, None, None],
+        labels_list=[src_labels, tar1_pred, tar2_labels],  # [src_labels, None, None],
         src_label=1,  # confidence should be higher for ID samples
         method="distance",
     )
