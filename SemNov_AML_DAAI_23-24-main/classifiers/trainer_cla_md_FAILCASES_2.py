@@ -19,7 +19,7 @@ from utils.data_utils import H5_Dataset
 from datasets.modelnet import *
 from datasets.scanobject import *
 from models.classifiers import Classifier
-from utils.ood_utils import (
+from utils.ood_utils_2 import (
     get_confidence,
     eval_ood_sncore,
     iterate_data_odin,
