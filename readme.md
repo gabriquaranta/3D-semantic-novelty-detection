@@ -1,6 +1,8 @@
 # 3D Semantic Novelty Detection
 
-The code and paper result have been developed in collaboration with [George Florin Eftime](https://github.com/geoxRegex) and [Giulio Maselli](https://github.com/giuliomsl).
+The code have been developed in collaboration with [George Florin Eftime](https://github.com/geoxRegex) and [Giulio Maselli](https://github.com/giuliomsl).
+
+Our results are presented in the report [Exploring the Depths of 3D Semantic Novelty Detection](s318944_s306125_s303483_project5.pdf).
 
 The project centers on 3D semantic novelty detection, aiming to differentiate whether a given data sample belongs to a predefined nominal distribution of known semantic classes.
 
