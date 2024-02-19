@@ -1,8 +1,0 @@
-
-.DS_Store
-.idea/*
-.idea/
-.env3DSND
-SemNov_AML_DAAI_23-24-main/openshape-pointbert-vitg14-rgb.pt
-test/
-.gitignore
